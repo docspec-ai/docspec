@@ -23,7 +23,8 @@
   "license": "MIT",
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "docspec-format.md"
   ],
   "devDependencies": {
     "@types/jest": "^30.0.0",

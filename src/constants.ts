@@ -1,58 +1,65 @@
+import { parseFormatFile, getFormatFilePath, ParsedFormat } from "./format-parser";
+
+let cachedFormat: ParsedFormat | null = null;
+
+/**
+ * Load and cache the format definition
+ */
+function loadFormat(): ParsedFormat {
+  if (cachedFormat) {
+    return cachedFormat;
+  }
+  
+  try {
+    const formatPath = getFormatFilePath();
+    cachedFormat = parseFormatFile(formatPath);
+    return cachedFormat;
+  } catch (error) {
+    throw new Error(
+      `Failed to load docspec format file: ${error instanceof Error ? error.message : String(error)}\n` +
+      `Make sure docspec-format.md exists in the project root.`
+    );
+  }
+}
+
 /**
  * Required section headers for docspec files
  */
-export const REQUIRED_SECTIONS = [
-  "Document Purpose",
-  "Update Triggers",
-  "Expected Structure",
-  "Editing Guidelines",
-  "Intentional Omissions",
-] as const;
+export const REQUIRED_SECTIONS = (() => {
+  const format = loadFormat();
+  return format.sections.map(s => s.name) as readonly string[];
+})();
 
 /**
  * Boilerplate template text for each section
  */
-export const SECTION_BOILERPLATE: Record<string, string> = {
-  "Document Purpose": `What this document exists to explain or enable.
-What questions it must reliably answer.
-What kind of doc it is (overview, agent guide, spec, tutorial, etc.).`,
-
-  "Update Triggers": `What kinds of changes should cause this document to be updated.
-Describe in terms of detectable changes (structure, APIs, workflows, behavior).
-Also note changes that **should not** trigger updates.`,
-
-  "Expected Structure": `The sections this document should contain.
-For each section: what it covers at a high level and any constraints
-(e.g., "high-level only", "no exhaustive lists", "link out instead of duplicating").`,
-
-  "Editing Guidelines": `How edits to this document should be made.
-Local rules for tone, level of detail, and scope.
-Explicit do/don't guidance to avoid drift, speculation, or redundancy.`,
-
-  "Intentional Omissions": `What this document deliberately does not cover.
-Where that information lives instead, if applicable.`,
-};
+export const SECTION_BOILERPLATE: Record<string, string> = (() => {
+  const format = loadFormat();
+  const boilerplate: Record<string, string> = {};
+  for (const section of format.sections) {
+    boilerplate[section.name] = section.boilerplate;
+  }
+  return boilerplate;
+})();
 
 /**
  * Generate the full docspec template
  * @param targetFilePath The path to the target markdown file (e.g., "README.md")
  */
 export function getDocspecTemplate(targetFilePath: string): string {
-  const sections = REQUIRED_SECTIONS.map((sectionName, index) => {
-    const sectionNumber = index + 1;
-    const boilerplate = SECTION_BOILERPLATE[sectionName];
-    return `## ${sectionNumber}. ${sectionName}\n\n${boilerplate}`;
+  const format = loadFormat();
+  
+  // Replace {{TARGET_FILE}} in template
+  let template = format.template.replace(/\{\{TARGET_FILE\}\}/g, targetFilePath);
+  
+  // Generate sections with separators
+  const sections = format.sections.map((section) => {
+    return `## ${section.number}. ${section.name}\n\n${section.boilerplate}`;
   }).join("\n\n---\n\n");
-
-  return `---
-
-# DOCSPEC: [${targetFilePath}](/${targetFilePath})
-
-> One line: what this document is for.
-
----
-
-${sections}
-`;
+  
+  // Replace {{SECTIONS}} placeholder
+  template = template.replace(/\{\{SECTIONS\}\}/g, sections);
+  
+  return template;
 }
 
