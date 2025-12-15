@@ -1,6 +1,6 @@
 # docspec
 
-Docspec is a specification format and toolchain for maintainable, structured documentation. It defines standards for documenting documentation itself, including what content is required, when it must be updated, and how it should be organized. This enables automated validation and long-term consistency.
+Docspec is a specification format and toolchain for documentation that is maintained by agents.
 
 ## The Docspec Format
 
