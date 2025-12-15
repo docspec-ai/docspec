@@ -1,0 +1,13 @@
+# Example pre-commit configuration for docspec validation
+# Copy this to .pre-commit-config.yaml in your project root
+
+repos:
+  - repo: local
+    hooks:
+      - id: docspec-validate
+        name: Validate docspec files
+        entry: docspec validate
+        language: system
+        files: \.docspec\.md$
+        pass_filenames: true
+
