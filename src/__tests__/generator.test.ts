@@ -85,7 +85,6 @@ describe("generator", () => {
       const content = await fs.readFile(filePath, "utf-8");
       
       // Check structure
-      expect(content).toContain("---");
       expect(content).toContain("# DOCSPEC:");
       expect(content).toContain("## 1.");
       expect(content).toContain("## 5.");

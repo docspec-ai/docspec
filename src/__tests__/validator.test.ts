@@ -21,13 +21,9 @@ describe("validator", () => {
       const filePath = path.join(tempDir, "valid.docspec.md");
       
       // Create a valid docspec with customized content
-      const validContent = `---
-
-# DOCSPEC: Test Document
+      const validContent = `# DOCSPEC: Test Document
 
 > Short phrase: *Test document*
-
----
 
 ## 1. Document Purpose
 
@@ -71,11 +67,7 @@ No gaps at this time. All major functionality is covered by the test suite.
     it("should detect missing sections", async () => {
       const filePath = path.join(tempDir, "incomplete.docspec.md");
       
-      const incompleteContent = `---
-
-# DOCSPEC: Test
-
----
+      const incompleteContent = `# DOCSPEC: Test
 
 ## 1. Document Purpose
 
@@ -97,11 +89,7 @@ More custom content.
     it("should detect empty sections", async () => {
       const filePath = path.join(tempDir, "empty-section.docspec.md");
       
-      let content = `---
-
-# DOCSPEC: Test
-
----
+      let content = `# DOCSPEC: Test
 
 `;
       
@@ -114,7 +102,7 @@ More custom content.
         } else {
           content += "Custom content for this section.\n";
         }
-        content += "\n---\n\n";
+        content += "\n\n";
       });
 
       await fs.writeFile(filePath, content, "utf-8");
@@ -127,11 +115,7 @@ More custom content.
     it("should handle files with section numbers in headers", async () => {
       const filePath = path.join(tempDir, "numbered.docspec.md");
       
-      const content = `---
-
-# DOCSPEC: Test
-
----
+      const content = `# DOCSPEC: Test
 
 ## 1. Document Purpose
 
@@ -163,9 +147,7 @@ There are no known gaps in this test document. All sections are complete and pro
     it("should handle files without section numbers in headers", async () => {
       const filePath = path.join(tempDir, "unnumbered.docspec.md");
       
-      const content = `---
-
-# DOCSPEC: Test
+      const content = `# DOCSPEC: Test
 
 ---
 
@@ -196,38 +178,26 @@ There are no known gaps in this test document. All sections are complete and pro
       expect(result.valid).toBe(true);
     });
 
-    it("should ignore separator lines (---) when validating content", async () => {
-      const filePath = path.join(tempDir, "with-separators.docspec.md");
+    it("should handle files without separators between sections", async () => {
+      const filePath = path.join(tempDir, "no-separators.docspec.md");
       
-      const content = `---
-
-# DOCSPEC: Test
-
----
+      const content = `# DOCSPEC: Test
 
 ## 1. Document Purpose
 
-This document tests the validator's ability to handle separator lines between sections. The content here is custom and different from boilerplate.
-
----
+This document tests the validator's ability to handle files without separator lines between sections. The content here is custom and different from boilerplate.
 
 ## 2. Update Triggers
 
-This document should be updated when testing separator line handling. The content is sufficient to pass validation.
-
----
+This document should be updated when testing files without separators. The content is sufficient to pass validation.
 
 ## 3. Expected Structure
 
 This section describes the document structure. It includes all required sections with adequate content length.
 
----
-
 ## 4. Editing Guidelines
 
-The style rules for this test document are straightforward. Content is technical and precise. Do: Test separator handling. Don't: Skip validation of separator lines. Ensure content is meaningful.
-
----
+The style rules for this test document are straightforward. Content is technical and precise. Do: Test files without separators. Don't: Require separators for validation. Ensure content is meaningful.
 
 ## 5. Intentional Omissions
 
@@ -237,18 +207,14 @@ No gaps in this test document. All sections are complete with sufficient content
       await fs.writeFile(filePath, content, "utf-8");
       const result = await validateDocspec(filePath);
 
-      // Should be valid even with separators
+      // Should be valid without separators
       expect(result.valid).toBe(true);
     });
 
     it("should reject content that only differs by whitespace from boilerplate", async () => {
       const filePath = path.join(tempDir, "whitespace-only.docspec.md");
       
-      let content = `---
-
-# DOCSPEC: Test
-
----
+      let content = `# DOCSPEC: Test
 
 `;
       
@@ -258,7 +224,7 @@ No gaps in this test document. All sections are complete with sufficient content
         // Use boilerplate but with extra spaces
         const boilerplate = SECTION_BOILERPLATE[section];
         content += boilerplate.replace(/\n/g, "  \n") + "\n";
-        content += "\n---\n\n";
+        content += "\n\n";
       });
 
       await fs.writeFile(filePath, content, "utf-8");
@@ -271,11 +237,7 @@ No gaps in this test document. All sections are complete with sufficient content
     it("should reject sections that are too short", async () => {
       const filePath = path.join(tempDir, "short-section.docspec.md");
       
-      let content = `---
-
-# DOCSPEC: Test
-
----
+      let content = `# DOCSPEC: Test
 
 `;
       
@@ -287,7 +249,7 @@ No gaps in this test document. All sections are complete with sufficient content
         } else {
           content += "This is a longer section with enough content to pass validation.\n";
         }
-        content += "\n---\n\n";
+        content += "\n\n";
       });
 
       await fs.writeFile(filePath, content, "utf-8");
@@ -309,11 +271,7 @@ No gaps in this test document. All sections are complete with sufficient content
     it("should handle files with extra sections (non-required)", async () => {
       const filePath = path.join(tempDir, "extra-sections.docspec.md");
       
-      const content = `---
-
-# DOCSPEC: Test
-
----
+      const content = `# DOCSPEC: Test
 
 ## 1. Document Purpose
 
@@ -350,9 +308,7 @@ This is an extra section that shouldn't cause validation to fail. It contains ad
     it("should handle case-insensitive section matching", async () => {
       const filePath = path.join(tempDir, "case-test.docspec.md");
       
-      const content = `---
-
-# DOCSPEC: Test
+      const content = `# DOCSPEC: Test
 
 ---
 

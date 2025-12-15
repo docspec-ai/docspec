@@ -57,16 +57,16 @@ export function getDocspecTemplate(targetFilePath: string): string {
   if (format.agentInstructions) {
     // Replace {{TARGET_FILE}} in agent instructions
     const agentContent = format.agentInstructions.replace(/\{\{TARGET_FILE\}\}/g, targetFilePath);
-    agentInstructionsSection = `## AGENT INSTRUCTIONS\n\n${agentContent}\n\n---\n\n`;
+    agentInstructionsSection = `## AGENT INSTRUCTIONS\n\n${agentContent}\n\n`;
   }
   
   // Replace {{AGENT_INSTRUCTIONS}} placeholder
   template = template.replace(/\{\{AGENT_INSTRUCTIONS\}\}/g, agentInstructionsSection);
   
-  // Generate sections with separators
+  // Generate sections
   const sections = format.sections.map((section) => {
     return `## ${section.number}. ${section.name}\n\n${section.boilerplate}`;
-  }).join("\n\n---\n\n");
+  }).join("\n\n");
   
   // Replace {{SECTIONS}} placeholder
   template = template.replace(/\{\{SECTIONS\}\}/g, sections);

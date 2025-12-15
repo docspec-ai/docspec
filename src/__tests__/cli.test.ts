@@ -40,11 +40,7 @@ describe("CLI", () => {
     it("should validate a valid docspec file", async () => {
       const filePath = path.join(tempDir, "valid.docspec.md");
       
-      const validContent = `---
-
-# DOCSPEC: Test
-
----
+      const validContent = `# DOCSPEC: Test
 
 ## 1. Document Purpose
 
@@ -90,11 +86,7 @@ There are no known gaps in this test document. All sections are complete and pro
       const file1 = path.join(tempDir, "file1.docspec.md");
       const file2 = path.join(tempDir, "file2.docspec.md");
       
-      const validContent = `---
-
-# DOCSPEC: Test
-
----
+      const validContent = `# DOCSPEC: Test
 
 ## 1. Document Purpose
 
@@ -133,11 +125,7 @@ There are no known gaps in this test document. All sections are complete and pro
       
       await fs.mkdir(path.join(tempDir, "nested"), { recursive: true });
       
-      const validContent = `---
-
-# DOCSPEC: Test
-
----
+      const validContent = `# DOCSPEC: Test
 
 ## 1. Document Purpose
 

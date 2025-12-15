@@ -59,17 +59,6 @@ describe("constants", () => {
       });
     });
 
-    it("should include separators between sections", () => {
-      const template = getDocspecTemplate("Test");
-      // Should have separators for 5 sections
-      const separatorCount = (template.match(/^---$/gm) || []).length;
-      expect(separatorCount).toBeGreaterThanOrEqual(2); // At least front matter and between sections
-    });
-
-    it("should have proper front matter format", () => {
-      const template = getDocspecTemplate("Test");
-      expect(template).toMatch(/^---\n/);
-    });
   });
 });
 
