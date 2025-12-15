@@ -13,7 +13,7 @@ The format includes 5 required sections:
 4. **Editing Guidelines** - How edits to this document should be made
 5. **Intentional Omissions** - What this document deliberately does not cover
 
-Each section must be customized—the validator ensures sections contain meaningful content beyond the boilerplate template.
+Each section must be customized. The validator ensures each section contains non-boilerplate content.
 
 ## Installation
 
