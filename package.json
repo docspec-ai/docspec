@@ -1,11 +1,11 @@
 {
   "name": "docspec",
   "version": "0.1.0",
-  "description": "Generate and validate docspec files (*.docspec.md) with standardized format",
+  "description": "A specification format and toolchain for defining, validating, and maintaining structured documentation.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "docspec": "./dist/cli.js"
+    "docspec": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
@@ -36,4 +36,3 @@
     "commander": "^14.0.2"
   }
 }
-

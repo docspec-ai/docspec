@@ -1,6 +1,6 @@
 # docspec
 
-Generate and validate docspec files (`*.docspec.md`) with a standardized 5-section format.
+Docspec is a specification format and toolchain for maintainable, structured documentation. It defines standards for documenting documentation itself, including what content is required, when it must be updated, and how it should be organized. This enables automated validation and long-term consistency.
 
 ## Installation
 
@@ -83,7 +83,9 @@ pre-commit install
 
 The hook will automatically validate any modified `*.docspec.md` files on commit.
 
-## Docspec Format
+## The Docspec Format
+
+The docspec format is a structured way to define documentation requirements. Each `*.docspec.md` file acts as a specification for another document, describing its purpose, update triggers, structure, style guidelines, and known limitations.
 
 A docspec file must contain the following 5 sections:
 
