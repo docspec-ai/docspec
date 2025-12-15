@@ -10,6 +10,7 @@ export interface ParsedSection {
 export interface ParsedFormat {
   sections: ParsedSection[];
   template: string;
+  agentInstructions?: string;
 }
 
 /**
@@ -26,11 +27,61 @@ export function parseFormatFile(formatFilePath: string): ParsedFormat {
 export function parseFormatContent(content: string): ParsedFormat {
   const lines = content.split("\n");
   
+  // Look for AGENT INSTRUCTIONS section first
+  let agentInstructions: string | undefined;
+  let agentInstructionsStart = -1;
+  let agentInstructionsEnd = -1;
+  
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === "## AGENT INSTRUCTIONS") {
+      agentInstructionsStart = i;
+      break;
+    }
+  }
+  
+  // If AGENT INSTRUCTIONS section found, extract it
+  if (agentInstructionsStart >= 0) {
+    // Find the end of the AGENT INSTRUCTIONS section
+    // It ends at the next section header (##) or end of file
+    for (let i = agentInstructionsStart + 1; i < lines.length; i++) {
+      const trimmedLine = lines[i].trim();
+      // Check if this is a section header (starts with ##)
+      if (trimmedLine.match(/^##\s+/)) {
+        agentInstructionsEnd = i;
+        break;
+      }
+    }
+    
+    if (agentInstructionsEnd < 0) {
+      agentInstructionsEnd = lines.length;
+    }
+    
+    // Extract content between header and next section
+    const agentLines = lines.slice(agentInstructionsStart + 1, agentInstructionsEnd);
+    let agentContent = agentLines.join("\n");
+    
+    // Remove separator lines (---) from the content
+    agentContent = agentContent
+      .split("\n")
+      .filter(line => line.trim() !== "---")
+      .join("\n")
+      .trim();
+    
+    if (agentContent) {
+      agentInstructions = agentContent;
+    }
+  }
+  
   // Find all section headers: ## N. Section Name
   const sectionHeaderRegex = /^##\s+(\d+)\.\s+(.+)$/;
   const sectionHeaders: Array<{ lineIndex: number; number: number; name: string }> = [];
   
   for (let i = 0; i < lines.length; i++) {
+    // Skip the AGENT INSTRUCTIONS header if it exists
+    if (lines[i].trim() === "## AGENT INSTRUCTIONS") {
+      continue;
+    }
+    
     const match = lines[i].match(sectionHeaderRegex);
     if (match) {
       sectionHeaders.push({
@@ -45,10 +96,21 @@ export function parseFormatContent(content: string): ParsedFormat {
     throw new Error("No section headers found in format file. Expected format: ## N. Section Name");
   }
   
-  // Extract template: everything before the first section header, plus {{SECTIONS}} placeholder
+  // Extract template: everything before the first numbered section header
+  // But exclude the AGENT INSTRUCTIONS section if it exists
   const firstSectionLine = sectionHeaders[0].lineIndex;
-  const templateBeforeSections = lines.slice(0, firstSectionLine).join("\n").trim();
-  const template = templateBeforeSections + "\n\n{{SECTIONS}}\n";
+  let templateBeforeSections: string;
+  
+  if (agentInstructionsStart >= 0 && agentInstructionsStart < firstSectionLine) {
+    // AGENT INSTRUCTIONS is between title and first section
+    // Template is everything before AGENT INSTRUCTIONS
+    templateBeforeSections = lines.slice(0, agentInstructionsStart).join("\n").trim();
+  } else {
+    // No AGENT INSTRUCTIONS, use everything before first section
+    templateBeforeSections = lines.slice(0, firstSectionLine).join("\n").trim();
+  }
+  
+  const template = templateBeforeSections + "\n\n{{AGENT_INSTRUCTIONS}}\n\n{{SECTIONS}}\n";
   
   // Extract sections
   const sections: ParsedSection[] = [];
@@ -83,6 +145,7 @@ export function parseFormatContent(content: string): ParsedFormat {
   return {
     sections,
     template,
+    agentInstructions,
   };
 }
 

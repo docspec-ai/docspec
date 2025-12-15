@@ -6,6 +6,20 @@
 
 ---
 
+## AGENT INSTRUCTIONS
+
+**Target document:** `{{TARGET_FILE}}`
+
+**Your task:**
+
+* Compare the target document against this docspec.
+* Update the target document to satisfy this docspec.
+* Make the smallest changes necessary.
+* Preserve existing content that already complies.
+* Do not invent content, sections, or facts not implied by this docspec or the repository.
+
+---
+
 ## 1. Document Purpose
 
 What this document exists to explain or enable.

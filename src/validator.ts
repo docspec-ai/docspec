@@ -79,6 +79,13 @@ function parseSections(content: string): DocspecSection[] {
       
       // Extract section name (remove section number if present)
       let sectionName = headerMatch[1].trim();
+      
+      // Skip AGENT INSTRUCTIONS section - don't validate it
+      if (sectionName === "AGENT INSTRUCTIONS") {
+        currentSection = null;
+        continue;
+      }
+      
       // Remove leading number and period (e.g., "1. Purpose" -> "Purpose")
       sectionName = sectionName.replace(/^\d+\.\s*/, "");
       
