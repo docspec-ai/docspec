@@ -46,23 +46,23 @@ describe("CLI", () => {
 
 ---
 
-## 1. Purpose of This Document
+## 1. Document Purpose
 
 This document serves as a test case for the CLI validation command. It contains custom content that is different from the boilerplate template and sufficient to pass validation.
 
-## 2. When This Document Should Be Updated
+## 2. Update Triggers
 
 This document should be updated when testing CLI validation functionality. The content is meaningful and customized for testing purposes.
 
-## 3. Structure & Required Sections
+## 3. Expected Structure
 
 This section describes the structure of the test document. It includes all required sections with adequate content to pass validation checks.
 
-## 4. Style & Editing Guidelines
+## 4. Editing Guidelines
 
 The style for this test document is straightforward and technical. It focuses on clarity and precision in describing test scenarios. Do: Ensure all sections have adequate content. Don't: Use boilerplate text or leave sections empty. Always provide meaningful test data.
 
-## 5. Known Gaps or Intentional Omissions
+## 5. Intentional Omissions
 
 There are no known gaps in this test document. All sections are complete and properly formatted with sufficient content.
 `;
@@ -76,7 +76,7 @@ There are no known gaps in this test document. All sections are complete and pro
 
     it("should reject an invalid docspec file", async () => {
       const filePath = path.join(tempDir, "invalid.docspec.md");
-      await generateDocspec(filePath, "Test"); // This creates boilerplate-only content
+      await generateDocspec(filePath); // This creates boilerplate-only content
 
       const result = await runCli(`validate ${filePath}`);
 
@@ -96,23 +96,23 @@ There are no known gaps in this test document. All sections are complete and pro
 
 ---
 
-## 1. Purpose of This Document
+## 1. Document Purpose
 
 This document serves as a test case for validating multiple docspec files. It contains custom content that is different from the boilerplate template.
 
-## 2. When This Document Should Be Updated
+## 2. Update Triggers
 
 This document should be updated when testing multiple file validation. The content is meaningful and customized for testing purposes.
 
-## 3. Structure & Required Sections
+## 3. Expected Structure
 
 This section describes the structure of the test document. It includes all required sections with adequate content to pass validation checks.
 
-## 4. Style & Editing Guidelines
+## 4. Editing Guidelines
 
 The style for this test document is straightforward and technical. It focuses on clarity and precision in describing test scenarios. Do: Ensure all sections have adequate content. Don't: Use boilerplate text or leave sections empty. Always provide meaningful test data.
 
-## 5. Known Gaps or Intentional Omissions
+## 5. Intentional Omissions
 
 There are no known gaps in this test document. All sections are complete and properly formatted with sufficient content.
 `;
@@ -139,23 +139,23 @@ There are no known gaps in this test document. All sections are complete and pro
 
 ---
 
-## 1. Purpose of This Document
+## 1. Document Purpose
 
 This document serves as a test case for validating multiple docspec files. It contains custom content that is different from the boilerplate template.
 
-## 2. When This Document Should Be Updated
+## 2. Update Triggers
 
 This document should be updated when testing multiple file validation. The content is meaningful and customized for testing purposes.
 
-## 3. Structure & Required Sections
+## 3. Expected Structure
 
 This section describes the structure of the test document. It includes all required sections with adequate content to pass validation checks.
 
-## 4. Style & Editing Guidelines
+## 4. Editing Guidelines
 
 The style for this test document is straightforward and technical. It focuses on clarity and precision in describing test scenarios. Do: Ensure all sections have adequate content. Don't: Use boilerplate text or leave sections empty. Always provide meaningful test data.
 
-## 5. Known Gaps or Intentional Omissions
+## 5. Intentional Omissions
 
 There are no known gaps in this test document. All sections are complete and properly formatted with sufficient content.
 `;
@@ -199,7 +199,7 @@ There are no known gaps in this test document. All sections are complete and pro
   describe("generate command", () => {
     it("should generate a new docspec file", async () => {
       const filePath = path.join(tempDir, "new.docspec.md");
-      const result = await runCli(`generate ${filePath} --name "Test Document"`);
+      const result = await runCli(`generate ${filePath}`);
 
       expect(result.code).toBe(0);
       expect(result.stdout).toContain("✅");
@@ -211,16 +211,16 @@ There are no known gaps in this test document. All sections are complete and pro
 
     it("should generate file with correct content", async () => {
       const filePath = path.join(tempDir, "test.docspec.md");
-      await runCli(`generate ${filePath} --name "My Document"`);
+      await runCli(`generate ${filePath}`);
 
       const content = await fs.readFile(filePath, "utf-8");
-      expect(content).toContain("# DOCSPEC: My Document");
-      expect(content).toContain("Purpose of This Document");
+      expect(content).toContain("# DOCSPEC: [test.md](/test.md)");
+      expect(content).toContain("Document Purpose");
     });
 
     it("should auto-append .docspec.md if not present", async () => {
       const filePath = path.join(tempDir, "test");
-      await runCli(`generate ${filePath} --name "Test"`);
+      await runCli(`generate ${filePath}`);
 
       const fullPath = filePath + ".docspec.md";
       const exists = await fs.access(fullPath).then(() => true).catch(() => false);
@@ -229,19 +229,19 @@ There are no known gaps in this test document. All sections are complete and pro
 
     it("should create nested directories", async () => {
       const filePath = path.join(tempDir, "nested", "deep", "test.docspec.md");
-      const result = await runCli(`generate ${filePath} --name "Test"`);
+      const result = await runCli(`generate ${filePath}`);
 
       expect(result.code).toBe(0);
       const exists = await fs.access(filePath).then(() => true).catch(() => false);
       expect(exists).toBe(true);
     });
 
-    it("should extract name from filename if not provided", async () => {
+    it("should generate link to target markdown file", async () => {
       const filePath = path.join(tempDir, "my-awesome-doc.docspec.md");
       await runCli(`generate ${filePath}`);
 
       const content = await fs.readFile(filePath, "utf-8");
-      expect(content).toContain("# DOCSPEC: My Awesome Doc");
+      expect(content).toContain("# DOCSPEC: [my-awesome-doc.md](/my-awesome-doc.md)");
     });
   });
 

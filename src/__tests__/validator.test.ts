@@ -29,23 +29,23 @@ describe("validator", () => {
 
 ---
 
-## 1. Purpose of This Document
+## 1. Document Purpose
 
 This document describes the test suite for the docspec validator. It provides comprehensive test coverage for all validation scenarios and edge cases that the validator needs to handle correctly.
 
-## 2. When This Document Should Be Updated
+## 2. Update Triggers
 
 Update this document when adding new test cases or when the validation logic changes. It should always reflect the current state of the test suite.
 
-## 3. Structure & Required Sections
+## 3. Expected Structure
 
 This section describes the test structure and how tests are organized. Each test file covers a specific module or functionality area of the docspec package.
 
-## 4. Style & Editing Guidelines
+## 4. Editing Guidelines
 
 Keep test descriptions clear and concise. Use descriptive test names that explain what is being tested. Follow the AAA pattern: Arrange, Act, Assert. Do: Write comprehensive tests that cover edge cases. Don't: Skip edge cases or write tests that are too simple. Always test both success and failure scenarios.
 
-## 5. Known Gaps or Intentional Omissions
+## 5. Intentional Omissions
 
 No gaps at this time. All major functionality is covered by the test suite.
 `;
@@ -59,7 +59,7 @@ No gaps at this time. All major functionality is covered by the test suite.
 
     it("should reject a file with only boilerplate content", async () => {
       const filePath = path.join(tempDir, "boilerplate.docspec.md");
-      await generateDocspec(filePath, "Test");
+      await generateDocspec(filePath);
 
       const result = await validateDocspec(filePath);
 
@@ -77,11 +77,11 @@ No gaps at this time. All major functionality is covered by the test suite.
 
 ---
 
-## 1. Purpose of This Document
+## 1. Document Purpose
 
 Custom content here.
 
-## 2. When This Document Should Be Updated
+## 2. Update Triggers
 
 More custom content.
 `;
@@ -133,23 +133,23 @@ More custom content.
 
 ---
 
-## 1. Purpose of This Document
+## 1. Document Purpose
 
 This document serves as a test case for validating docspec files with numbered section headers. It contains custom content that is different from the boilerplate template.
 
-## 2. When This Document Should Be Updated
+## 2. Update Triggers
 
 This document should be updated whenever the validation logic for numbered headers changes. It tests the parser's ability to handle section numbers correctly.
 
-## 3. Structure & Required Sections
+## 3. Expected Structure
 
 This section describes the structure of the test document. It includes all required sections with sufficient content to pass validation checks.
 
-## 4. Style & Editing Guidelines
+## 4. Editing Guidelines
 
 The style for this test document is straightforward and technical. It focuses on clarity and precision in describing test scenarios. Do: Ensure all sections have adequate content. Don't: Use boilerplate text or leave sections empty. Always provide meaningful test data.
 
-## 5. Known Gaps or Intentional Omissions
+## 5. Intentional Omissions
 
 There are no known gaps in this test document. All sections are complete and properly formatted.
 `;
@@ -169,23 +169,23 @@ There are no known gaps in this test document. All sections are complete and pro
 
 ---
 
-## Purpose of This Document
+## Document Purpose
 
 This document serves as a test case for validating docspec files without numbered section headers. It contains custom content that differs from the boilerplate template.
 
-## When This Document Should Be Updated
+## Update Triggers
 
 This document should be updated whenever the validation logic for unnumbered headers changes. It tests the parser's flexibility in handling different header formats.
 
-## Structure & Required Sections
+## Expected Structure
 
 This section describes the structure of the test document. It includes all required sections with sufficient content to pass validation checks.
 
-## Style & Editing Guidelines
+## Editing Guidelines
 
 The style for this test document is straightforward and technical. It focuses on clarity and precision in describing test scenarios. Do: Ensure all sections have adequate content. Don't: Use boilerplate text or leave sections empty. Always provide meaningful test data.
 
-## Known Gaps or Intentional Omissions
+## Intentional Omissions
 
 There are no known gaps in this test document. All sections are complete and properly formatted.
 `;
@@ -205,31 +205,31 @@ There are no known gaps in this test document. All sections are complete and pro
 
 ---
 
-## 1. Purpose of This Document
+## 1. Document Purpose
 
 This document tests the validator's ability to handle separator lines between sections. The content here is custom and different from boilerplate.
 
 ---
 
-## 2. When This Document Should Be Updated
+## 2. Update Triggers
 
 This document should be updated when testing separator line handling. The content is sufficient to pass validation.
 
 ---
 
-## 3. Structure & Required Sections
+## 3. Expected Structure
 
 This section describes the document structure. It includes all required sections with adequate content length.
 
 ---
 
-## 4. Style & Editing Guidelines
+## 4. Editing Guidelines
 
 The style rules for this test document are straightforward. Content is technical and precise. Do: Test separator handling. Don't: Skip validation of separator lines. Ensure content is meaningful.
 
 ---
 
-## 5. Known Gaps or Intentional Omissions
+## 5. Intentional Omissions
 
 No gaps in this test document. All sections are complete with sufficient content.
 `;
@@ -315,23 +315,23 @@ No gaps in this test document. All sections are complete with sufficient content
 
 ---
 
-## 1. Purpose of This Document
+## 1. Document Purpose
 
 This document tests the validator's handling of extra sections beyond the required ones. The content is custom and sufficient to pass validation.
 
-## 2. When This Document Should Be Updated
+## 2. Update Triggers
 
 This document should be updated when testing extra section handling. The content is meaningful and not boilerplate.
 
-## 3. Structure & Required Sections
+## 3. Expected Structure
 
 This section describes the document structure including both required and optional sections. All content is customized.
 
-## 4. Style & Editing Guidelines
+## 4. Editing Guidelines
 
 The style rules for this test document are clear and technical. Content is sufficient in length. Do: Test extra sections. Don't: Reject valid documents with additional sections. Ensure all required sections are present.
 
-## 5. Known Gaps or Intentional Omissions
+## 5. Intentional Omissions
 
 No gaps in this test document. All sections are complete with adequate content.
 
@@ -364,15 +364,15 @@ Custom content.
 
 Custom content.
 
-## 3. Structure & Required Sections
+## 3. Expected Structure
 
 Custom content.
 
-## 4. Style & Editing Guidelines
+## 4. Editing Guidelines
 
 Custom style and editing guidelines content.
 
-## 5. Known Gaps or Intentional Omissions
+## 5. Intentional Omissions
 
 Custom gaps content.
 `;

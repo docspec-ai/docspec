@@ -2,42 +2,42 @@
  * Required section headers for docspec files
  */
 export const REQUIRED_SECTIONS = [
-  "Purpose of This Document",
-  "When This Document Should Be Updated",
-  "Structure & Required Sections",
-  "Style & Editing Guidelines",
-  "Known Gaps or Intentional Omissions",
+  "Document Purpose",
+  "Update Triggers",
+  "Expected Structure",
+  "Editing Guidelines",
+  "Intentional Omissions",
 ] as const;
 
 /**
  * Boilerplate template text for each section
  */
 export const SECTION_BOILERPLATE: Record<string, string> = {
-  "Purpose of This Document": `Explain **what this Markdown file is supposed to achieve**, not what it currently contains.
+  "Document Purpose": `What this document exists to explain or enable.
+What questions it must reliably answer.
+What kind of doc it is (overview, agent guide, spec, tutorial, etc.).`,
 
-What questions should this document always be able to answer? What *kind* of document is it (overview, spec, tutorial, ops runbook, etc.)?`,
+  "Update Triggers": `What kinds of changes should cause this document to be updated.
+Describe in terms of detectable changes (structure, APIs, workflows, behavior).
+Also note changes that **should not** trigger updates.`,
 
-  "When This Document Should Be Updated": `Describe **triggers** based on code changes.
+  "Expected Structure": `The sections this document should contain.
+For each section: what it covers at a high level and any constraints
+(e.g., "high-level only", "no exhaustive lists", "link out instead of duplicating").`,
 
-Write as concrete rules that can be checked against a diff. Examples: "If new subdirectories are added, update the contents section" or "If public APIs change, update the interaction section."`,
+  "Editing Guidelines": `How edits to this document should be made.
+Local rules for tone, level of detail, and scope.
+Explicit do/don't guidance to avoid drift, speculation, or redundancy.`,
 
-  "Structure & Required Sections": `Describe the **expected sections** and what belongs in each, without restating the actual content.
-
-For each section, specify: its name/role, what it should cover (conceptual, not literal), and any constraints (e.g., "Keep high-level; don't enumerate every file").`,
-
-  "Style & Editing Guidelines": `Rules **specific to this doc or directory**, not global writing rules.
-
-Include both style preferences (e.g., "Use non-technical language" or "Prefer bullet lists") and concrete editing guidelines (e.g., "Do: Update examples when APIs change" or "Don't: Remove placeholder sections").`,
-
-  "Known Gaps or Intentional Omissions": `Note things that **should not be documented yet** or are deliberately vague.
-
-Examples: "Auth design is intentionally not detailed here; see \`/security/README.md\`" or "This doc avoids internal business logic; keep it conceptual."`,
+  "Intentional Omissions": `What this document deliberately does not cover.
+Where that information lives instead, if applicable.`,
 };
 
 /**
  * Generate the full docspec template
+ * @param targetFilePath The path to the target markdown file (e.g., "README.md")
  */
-export function getDocspecTemplate(name: string): string {
+export function getDocspecTemplate(targetFilePath: string): string {
   const sections = REQUIRED_SECTIONS.map((sectionName, index) => {
     const sectionNumber = index + 1;
     const boilerplate = SECTION_BOILERPLATE[sectionName];
@@ -46,9 +46,9 @@ export function getDocspecTemplate(name: string): string {
 
   return `---
 
-# DOCSPEC: ${name}
+# DOCSPEC: [${targetFilePath}](/${targetFilePath})
 
-> Short phrase: *What this doc is for* (e.g. "Overview of this directory's purpose and structure.")
+> One line: what this document is for.
 
 ---
 

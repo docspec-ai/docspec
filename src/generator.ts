@@ -4,15 +4,15 @@ import * as path from "path";
 
 /**
  * Generate a new docspec file at the specified path
- * @param filePath Path where the docspec file should be created
- * @param name Name of the document (used in the header)
+ * @param filePath Path where the docspec file should be created (must end with .docspec.md)
  */
-export async function generateDocspec(filePath: string, name?: string): Promise<void> {
-  // Extract name from file path if not provided
-  const docName = name || extractNameFromPath(filePath);
+export async function generateDocspec(filePath: string): Promise<void> {
+  // Extract target file path (replace .docspec.md with .md)
+  const targetFilePath = filePath.replace(/\.docspec\.md$/, ".md");
+  const targetFileName = path.basename(targetFilePath);
   
   // Generate the template content
-  const content = getDocspecTemplate(docName);
+  const content = getDocspecTemplate(targetFileName);
   
   // Ensure the directory exists (recursive: true is safe even if dir exists)
   const dir = path.dirname(filePath);
@@ -26,21 +26,9 @@ export async function generateDocspec(filePath: string, name?: string): Promise<
 
 /**
  * Generate docspec content as a string (for library use)
- * @param name Name of the document
+ * @param targetFilePath Path to the target markdown file (e.g., "README.md")
  */
-export function generateDocspecContent(name: string): string {
-  return getDocspecTemplate(name);
-}
-
-/**
- * Extract a document name from a file path
- */
-function extractNameFromPath(filePath: string): string {
-  const basename = path.basename(filePath, ".docspec.md");
-  // Convert kebab-case, snake_case, or camelCase to Title Case
-  return basename
-    .split(/[-_]/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
+export function generateDocspecContent(targetFilePath: string): string {
+  return getDocspecTemplate(targetFilePath);
 }
 

@@ -8,11 +8,11 @@ describe("constants", () => {
 
     it("should contain all expected section names", () => {
       const expectedSections = [
-        "Purpose of This Document",
-        "When This Document Should Be Updated",
-        "Structure & Required Sections",
-        "Style & Editing Guidelines",
-        "Known Gaps or Intentional Omissions",
+        "Document Purpose",
+        "Update Triggers",
+        "Expected Structure",
+        "Editing Guidelines",
+        "Intentional Omissions",
       ];
 
       expectedSections.forEach((section) => {
@@ -31,9 +31,9 @@ describe("constants", () => {
   });
 
   describe("getDocspecTemplate", () => {
-    it("should generate a template with the document name", () => {
-      const template = getDocspecTemplate("Test Document");
-      expect(template).toContain("# DOCSPEC: Test Document");
+    it("should generate a template with link to target file", () => {
+      const template = getDocspecTemplate("README.md");
+      expect(template).toContain("# DOCSPEC: [README.md](/README.md)");
     });
 
     it("should include all 5 required sections", () => {

@@ -57,16 +57,15 @@ program
 program
   .command("generate")
   .description("Generate a new docspec file")
-  .argument("<path>", "Path where the docspec file should be created")
-  .option("-n, --name <name>", "Name of the document (defaults to filename)")
-  .action(async (filePath: string, options: { name?: string }) => {
+  .argument("<path>", "Path where the docspec file should be created (must end with .docspec.md)")
+  .action(async (filePath: string) => {
     try {
       // Ensure the path ends with .docspec.md
       if (!filePath.endsWith(".docspec.md")) {
         filePath = filePath + ".docspec.md";
       }
       
-      await generateDocspec(filePath, options.name);
+      await generateDocspec(filePath);
       console.log(`✅ Generated docspec file: ${filePath}`);
     } catch (error) {
       console.error(`❌ Failed to generate docspec file: ${error instanceof Error ? error.message : String(error)}`);

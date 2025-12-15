@@ -2,6 +2,61 @@
 
 Docspec is a specification format and toolchain for maintainable, structured documentation. It defines standards for documenting documentation itself, including what content is required, when it must be updated, and how it should be organized. This enables automated validation and long-term consistency.
 
+## The Docspec Format
+
+Each `*.docspec.md` file is a specification for another document. Here's the standard format:
+
+```markdown
+---
+
+# DOCSPEC: [Target Markdown File](/[target-file].md)
+
+> One line: what this document is for.
+
+---
+
+## 1. Document Purpose
+
+What this document exists to explain or enable.
+What questions it must reliably answer.
+What kind of doc it is (overview, agent guide, spec, tutorial, etc.).
+
+---
+
+## 2. Update Triggers
+
+What kinds of changes should cause this document to be updated.
+Describe in terms of detectable changes (structure, APIs, workflows, behavior).
+Also note changes that **should not** trigger updates.
+
+---
+
+## 3. Expected Structure
+
+The sections this document should contain.
+For each section: what it covers at a high level and any constraints
+(e.g., "high-level only", "no exhaustive lists", "link out instead of duplicating").
+
+---
+
+## 4. Editing Guidelines
+
+How edits to this document should be made.
+Local rules for tone, level of detail, and scope.
+Explicit do/don't guidance to avoid drift, speculation, or redundancy.
+
+---
+
+## 5. Intentional Omissions
+
+What this document deliberately does not cover.
+Where that information lives instead, if applicable.
+
+---
+```
+
+Each section must be customized—the validator ensures sections contain meaningful content beyond the boilerplate template.
+
 ## Installation
 
 ```bash
@@ -35,14 +90,10 @@ docspec validate
 #### Generate a new docspec file
 
 ```bash
-docspec generate path/to/new-file.docspec.md
+docspec generate path/to/README.docspec.md
 ```
 
-Optionally specify a document name:
-
-```bash
-docspec generate path/to/new-file.docspec.md --name "My Document"
-```
+This will generate a docspec file that references the target markdown file (e.g., `README.docspec.md` references `README.md`).
 
 ### Library Usage
 
@@ -56,7 +107,7 @@ if (!result.valid) {
 }
 
 // Generate a new docspec file
-await generateDocspec("path/to/new-file.docspec.md", "Document Name");
+await generateDocspec("path/to/README.docspec.md");
 ```
 
 ## Pre-commit Integration
@@ -82,20 +133,6 @@ pre-commit install
 ```
 
 The hook will automatically validate any modified `*.docspec.md` files on commit.
-
-## The Docspec Format
-
-The docspec format is a structured way to define documentation requirements. Each `*.docspec.md` file acts as a specification for another document, describing its purpose, update triggers, structure, style guidelines, and known limitations.
-
-A docspec file must contain the following 5 sections:
-
-1. **Purpose of This Document** - Explain what this Markdown file is supposed to achieve
-2. **When This Document Should Be Updated** - Describe triggers based on code changes
-3. **Structure & Required Sections** - Describe expected sections and what belongs in them
-4. **Style & Editing Guidelines** - Rules specific to this doc or directory
-5. **Known Gaps or Intentional Omissions** - Things that should not be documented yet
-
-Each section must be customized and cannot contain only the boilerplate template text.
 
 ## Development
 

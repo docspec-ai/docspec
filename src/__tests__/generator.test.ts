@@ -16,13 +16,13 @@ describe("generator", () => {
   });
 
   describe("generateDocspecContent", () => {
-    it("should generate content with the provided name", () => {
-      const content = generateDocspecContent("My Test Document");
-      expect(content).toContain("# DOCSPEC: My Test Document");
+    it("should generate content with link to target file", () => {
+      const content = generateDocspecContent("README.md");
+      expect(content).toContain("# DOCSPEC: [README.md](/README.md)");
     });
 
     it("should include all required sections", () => {
-      const content = generateDocspecContent("Test");
+      const content = generateDocspecContent("test.md");
       REQUIRED_SECTIONS.forEach((section) => {
         expect(content).toContain(section);
       });
@@ -32,26 +32,26 @@ describe("generator", () => {
   describe("generateDocspec", () => {
     it("should generate a file at the specified path", async () => {
       const filePath = path.join(tempDir, "test.docspec.md");
-      await generateDocspec(filePath, "Test Document");
+      await generateDocspec(filePath);
 
       const exists = await fs.access(filePath).then(() => true).catch(() => false);
       expect(exists).toBe(true);
     });
 
-    it("should use provided document name", async () => {
+    it("should generate link to target markdown file", async () => {
       const filePath = path.join(tempDir, "test.docspec.md");
-      await generateDocspec(filePath, "Custom Name");
+      await generateDocspec(filePath);
 
       const content = await fs.readFile(filePath, "utf-8");
-      expect(content).toContain("# DOCSPEC: Custom Name");
+      expect(content).toContain("# DOCSPEC: [test.md](/test.md)");
     });
 
-    it("should extract name from file path if not provided", async () => {
+    it("should extract target filename from docspec path", async () => {
       const filePath = path.join(tempDir, "my-awesome-doc.docspec.md");
       await generateDocspec(filePath);
 
       const content = await fs.readFile(filePath, "utf-8");
-      expect(content).toContain("# DOCSPEC: My Awesome Doc");
+      expect(content).toContain("# DOCSPEC: [my-awesome-doc.md](/my-awesome-doc.md)");
     });
 
     it("should handle kebab-case filenames", async () => {
@@ -59,7 +59,7 @@ describe("generator", () => {
       await generateDocspec(filePath);
 
       const content = await fs.readFile(filePath, "utf-8");
-      expect(content).toContain("# DOCSPEC: Api Reference");
+      expect(content).toContain("# DOCSPEC: [api-reference.md](/api-reference.md)");
     });
 
     it("should handle snake_case filenames", async () => {
@@ -67,12 +67,12 @@ describe("generator", () => {
       await generateDocspec(filePath);
 
       const content = await fs.readFile(filePath, "utf-8");
-      expect(content).toContain("# DOCSPEC: User Guide");
+      expect(content).toContain("# DOCSPEC: [user_guide.md](/user_guide.md)");
     });
 
     it("should create parent directories if they don't exist", async () => {
       const filePath = path.join(tempDir, "nested", "deep", "test.docspec.md");
-      await generateDocspec(filePath, "Test");
+      await generateDocspec(filePath);
 
       const exists = await fs.access(filePath).then(() => true).catch(() => false);
       expect(exists).toBe(true);
@@ -80,7 +80,7 @@ describe("generator", () => {
 
     it("should generate valid markdown content", async () => {
       const filePath = path.join(tempDir, "test.docspec.md");
-      await generateDocspec(filePath, "Test");
+      await generateDocspec(filePath);
 
       const content = await fs.readFile(filePath, "utf-8");
       
@@ -89,11 +89,12 @@ describe("generator", () => {
       expect(content).toContain("# DOCSPEC:");
       expect(content).toContain("## 1.");
       expect(content).toContain("## 5.");
+      expect(content).toContain("[test.md](/test.md)");
     });
 
     it("should include all required sections in generated file", async () => {
       const filePath = path.join(tempDir, "test.docspec.md");
-      await generateDocspec(filePath, "Test");
+      await generateDocspec(filePath);
 
       const content = await fs.readFile(filePath, "utf-8");
       REQUIRED_SECTIONS.forEach((section) => {
