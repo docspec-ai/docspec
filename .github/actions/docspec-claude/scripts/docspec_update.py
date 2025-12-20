@@ -13,8 +13,6 @@ import subprocess
 from pathlib import Path
 from typing import List, Optional
 
-from anthropic import Anthropic
-
 RE_DOCSPEC = re.compile(r".*\.docspec\.md$")
 
 MAX_DOCSPECS = int(os.getenv("MAX_DOCSPECS", "10"))
@@ -56,26 +54,35 @@ def find_candidate_docspecs(repo_root: Path, changed_files: List[str]) -> List[P
     
     Strategy:
     1) If docspec files changed directly, include them.
-    2) Also include docspecs that correspond to changed markdown files.
+    2) For each changed file, walk up the directory tree from its directory
+       to repo root, looking for *.docspec.md files at each level.
     """
-    changed_set = set(changed_files)
     candidates: List[Path] = []
 
-    # 1) Changed docspecs
+    # 1) Directly changed docspecs
     for f in changed_files:
         if RE_DOCSPEC.match(f):
             p = repo_root / f
             if p.exists():
                 candidates.append(p)
 
-    # 2) Docspecs that pair with changed .md (Option B: README.docspec.md)
+    # 2) For each changed file, walk up directory tree
     for f in changed_files:
-        if f.endswith(".md") and not f.endswith(".docspec.md"):
-            md_path = repo_root / f
-            # Option B: README.docspec.md pairs with README.md
-            docspec_path = md_path.with_suffix("").with_name(md_path.stem + ".docspec.md")
-            if docspec_path.exists():
-                candidates.append(docspec_path)
+        file_path = repo_root / f
+        if not file_path.exists():
+            continue
+        
+        current_dir = file_path.parent
+        
+        # Walk up to repo root
+        while current_dir != repo_root.parent:
+            # Look for docspecs in this directory
+            for docspec_file in current_dir.glob("*.docspec.md"):
+                if docspec_file not in candidates:
+                    candidates.append(docspec_file)
+            
+            # Move to parent
+            current_dir = current_dir.parent
 
     # De-dupe while preserving order
     seen = set()
@@ -97,19 +104,48 @@ def pr_diff_text(base_sha: str, merge_sha: str) -> str:
     return diff
 
 
-def call_claude_for_patch(
-    client: Anthropic, diff: str, docspec: str, md_path: str, md_text: str
-) -> str:
-    """Call Claude API to generate unified diff patch for markdown file."""
-    system = (
-        "You are a repo documentation maintenance tool.\n"
-        "You must output ONLY a unified diff patch.\n"
-        "Patch must modify ONLY the target markdown file path provided.\n"
-        "If no change is needed, output an empty string.\n"
-        "Never add new files. Never modify non-markdown files.\n"
-    )
+def extract_unified_diff(output: str) -> str:
+    """Extract unified diff from Claude CLI output."""
+    # Look for unified diff markers
+    lines = output.splitlines()
+    diff_start = None
+    diff_end = len(lines)
+    
+    # Find start of diff (either "diff --git" or "--- ")
+    for i, line in enumerate(lines):
+        if line.startswith("diff --git") or line.startswith("--- "):
+            diff_start = i
+            break
+    
+    if diff_start is None:
+        # No diff markers found, return empty or try to find diff-like content
+        # Look for lines that look like diff hunks
+        for i, line in enumerate(lines):
+            if line.startswith("@@"):
+                diff_start = i - 1  # Include the --- line before
+                break
+    
+    if diff_start is None:
+        return ""
+    
+    # Extract from diff_start to end, but remove trailing non-diff content
+    diff_lines = lines[diff_start:]
+    # Remove any trailing text that doesn't look like diff
+    for i in range(len(diff_lines) - 1, -1, -1):
+        if diff_lines[i].strip() and not (
+            diff_lines[i].startswith(("diff ", "--- ", "+++ ", "@@", " ", "+", "-", "\\"))
+        ):
+            diff_end = i + 1
+            break
+    
+    return "\n".join(diff_lines[:diff_end]).strip()
 
-    user = f"""Merged PR diff (context):
+
+def call_claude_cli_for_patch(
+    diff: str, docspec: str, md_path: str, md_text: str, repo_root: Path
+) -> str:
+    """Call Claude Code CLI to generate unified diff patch."""
+    prompt = f"""Merged PR diff (context):
 <diff>
 {diff}
 </diff>
@@ -125,21 +161,43 @@ Current markdown content:
 </markdown>
 
 Task:
-Update the markdown to satisfy the docspec given the code changes in the diff.
-If doc does not need changes, output empty.
-Output ONLY a unified diff against the markdown file at path: {md_path}
-"""
+1. Explore the repository using your available tools (Read, Glob, Grep, Bash, etc.) to understand the codebase context
+2. Understand how the code changes in the diff relate to the documentation
+3. Update the markdown file at {md_path} to satisfy the docspec given the code changes
+4. If no changes are needed, output an empty string
+5. Output ONLY a unified diff against the markdown file at path: {md_path}
 
-    msg = client.messages.create(
-        model=os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest"),
-        max_tokens=4000,
-        temperature=0,
-        system=system,
-        messages=[{"role": "user", "content": user}],
-    )
-    # anthropic python SDK returns content blocks
-    text = "".join(block.text for block in msg.content if hasattr(block, "text"))
-    return text.strip()
+Important: You must output ONLY a unified diff. No explanations, no other text. Start with "--- " or "diff --git"."""
+    
+    # Call claude CLI
+    env = os.environ.copy()
+    if "ANTHROPIC_API_KEY" in os.environ:
+        env["ANTHROPIC_API_KEY"] = os.environ["ANTHROPIC_API_KEY"]
+    
+    model = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
+    
+    try:
+        result = subprocess.run(
+            ["claude", "-p", prompt],
+            text=True,
+            capture_output=True,
+            cwd=str(repo_root),
+            env=env,
+            timeout=300,  # 5 minute timeout
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("Claude CLI timed out after 5 minutes")
+    except FileNotFoundError:
+        raise RuntimeError(
+            "Claude CLI not found. Please install with: npm install -g @anthropic-ai/claude-code"
+        )
+    
+    if result.returncode != 0:
+        raise RuntimeError(f"Claude CLI failed: {result.stderr}")
+    
+    # Extract unified diff from output
+    output = result.stdout.strip()
+    return extract_unified_diff(output)
 
 
 def apply_patch(patch: str) -> None:
@@ -174,8 +232,6 @@ def main() -> None:
 
     print(f"Found {len(docspec_paths)} docspec file(s) to process.")
 
-    client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-
     for docspec_path in docspec_paths:
         target_md = target_markdown_for_docspec(docspec_path)
         if not target_md or not target_md.exists():
@@ -187,8 +243,8 @@ def main() -> None:
         docspec = read_text(docspec_path)
         md_text = read_text(target_md)
 
-        patch = call_claude_for_patch(
-            client, diff, docspec, str(target_md), md_text
+        patch = call_claude_cli_for_patch(
+            diff, docspec, str(target_md), md_text, repo_root
         )
         if not patch:
             print(f"No change needed for {target_md}")

@@ -94,7 +94,7 @@ The hook will automatically validate any modified `*.docspec.md` files on commit
 
 ## GitHub Action Integration
 
-Docspec includes a GitHub Action that automatically updates markdown files based on `*.docspec.md` files after PR merges, using Claude API to generate patches.
+Docspec includes a GitHub Action that automatically updates markdown files based on `*.docspec.md` files after PR merges, using Claude Code CLI to explore the repository and generate patches.
 
 ### Setup
 
@@ -143,11 +143,13 @@ jobs:
 ### How It Works
 
 1. When a PR is merged, the workflow triggers
-2. The action discovers relevant `*.docspec.md` files:
+2. The action discovers relevant `*.docspec.md` files using directory-based discovery:
    - Files that changed directly in the PR
-   - Files that pair with markdown files that changed
-3. For each docspec, Claude generates a unified diff patch to update the target markdown
-4. Patches are applied and a new PR is opened with the documentation updates
+   - Files in the same directory as any changed file
+   - Files in parent directories (walking up to repo root) of any changed file
+3. For each docspec, Claude Code CLI explores the repository using built-in tools (Read, Glob, Grep, Bash, etc.) to understand the codebase context
+4. Claude generates a unified diff patch to update the target markdown based on the code changes and docspec requirements
+5. Patches are applied and a new PR is opened with the documentation updates
 
 ### Configuration Options
 
@@ -188,6 +190,7 @@ The action includes several guardrails:
 - **Path validation**: Patches must reference the expected file path
 - **No new files**: Patches cannot create new files or modify non-markdown files
 - **Concurrency control**: Prevents multiple runs from conflicting
+- **Filesystem exploration**: Claude Code CLI provides built-in tools (Read, Glob, Grep, Bash) that run in a controlled environment
 
 ## Development
 
