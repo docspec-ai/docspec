@@ -92,6 +92,103 @@ pre-commit install
 
 The hook will automatically validate any modified `*.docspec.md` files on commit.
 
+## GitHub Action Integration
+
+Docspec includes a GitHub Action that automatically updates markdown files based on `*.docspec.md` files after PR merges, using Claude API to generate patches.
+
+### Setup
+
+1. **Add the workflow** to your repository (`.github/workflows/docspec-claude.yml`):
+
+```yaml
+name: Update docs from docspec after merge
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: docspec-claude-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  docspec_update:
+    if: ${{ github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run docspec updater
+        uses: docspec-ai/docspec@main
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          pr_number: ${{ github.event.pull_request.number }}
+          base_sha: ${{ github.event.pull_request.base.sha }}
+          merge_sha: ${{ github.event.pull_request.merge_commit_sha }}
+          repo: ${{ github.repository }}
+          base_ref: ${{ github.event.pull_request.base.ref }}
+```
+
+2. **Configure secrets**: 
+   - Add `ANTHROPIC_API_KEY` to your repository secrets (Settings → Secrets and variables → Actions)
+
+3. **File naming convention**: The action uses Option B convention:
+   - `README.docspec.md` → targets `README.md`
+   - `docs/guide.docspec.md` → targets `docs/guide.md`
+
+### How It Works
+
+1. When a PR is merged, the workflow triggers
+2. The action discovers relevant `*.docspec.md` files:
+   - Files that changed directly in the PR
+   - Files that pair with markdown files that changed
+3. For each docspec, Claude generates a unified diff patch to update the target markdown
+4. Patches are applied and a new PR is opened with the documentation updates
+
+### Configuration Options
+
+The action supports optional inputs:
+
+- `max_docspecs` (default: `10`) - Maximum number of docspec files to process per merge
+- `max_diff_chars` (default: `120000`) - Maximum characters in PR diff before truncation
+- `anthropic_model` (default: `claude-3-5-sonnet-latest`) - Anthropic model to use
+
+Example with custom configuration:
+
+```yaml
+- name: Run docspec updater
+  uses: ./.github/actions/docspec-claude
+  with:
+    anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+    github_token: ${{ secrets.GITHUB_TOKEN }}
+    pr_number: ${{ github.event.pull_request.number }}
+    base_sha: ${{ github.event.pull_request.base.sha }}
+    merge_sha: ${{ github.event.pull_request.merge_commit_sha }}
+    repo: ${{ github.repository }}
+    base_ref: ${{ github.event.pull_request.base.ref }}
+    max_docspecs: '5'
+    max_diff_chars: '60000'
+    anthropic_model: 'claude-3-opus-20240229'
+```
+
+**Note**: For this repository's own workflow, you can use the local reference `./` instead of the published action.
+```
+
+### Safety Features
+
+The action includes several guardrails:
+
+- **Max files limit**: Prevents processing too many files in a single run
+- **Diff truncation**: Large PR diffs are truncated to stay within token limits
+- **Unified diff validation**: Only accepts properly formatted patches
+- **Path validation**: Patches must reference the expected file path
+- **No new files**: Patches cannot create new files or modify non-markdown files
+- **Concurrency control**: Prevents multiple runs from conflicting
+
 ## Development
 
 ### Running Tests

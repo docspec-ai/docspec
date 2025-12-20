@@ -1,0 +1,31 @@
+name: Update docs from docspec after merge
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: docspec-claude-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  docspec_update:
+    if: ${{ github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run docspec updater
+        uses: ./
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          pr_number: ${{ github.event.pull_request.number }}
+          base_sha: ${{ github.event.pull_request.base.sha }}
+          merge_sha: ${{ github.event.pull_request.merge_commit_sha }}
+          repo: ${{ github.repository }}
+          base_ref: ${{ github.event.pull_request.base.ref }}
+
