@@ -1,11 +1,11 @@
 You are analyzing a markdown file and its docspec to discover missing or irrelevant information. Do not ask questions - create the plan directly.
 
-<markdown path="{md_path}">
-{md_text}
+<markdown path="${md_path}">
+${md_text}
 </markdown>
 
-<docspec path="{docspec_path}">
-{docspec_text}
+<docspec path="${docspec_path}">
+${docspec_text}
 </docspec>
 
 Task: Focus on INFORMATION DISCOVERY. Use all of your available tools to explore the repository and understand what actually exists, then analyze both files and create a plan that identifies:

@@ -10,6 +10,7 @@ and updates only the content of sections 1-5 (preserving structure).
 import os
 import subprocess
 from pathlib import Path
+from string import Template
 
 
 def read_text(path: Path) -> str:
@@ -18,10 +19,15 @@ def read_text(path: Path) -> str:
 
 
 def load_template(template_name: str, **kwargs) -> str:
-    """Load template file and format with variables."""
+    """Load template file and format with variables using string.Template.
+    
+    Safely handles content with curly braces since Template uses $ syntax.
+    """
     template_path = Path(__file__).parent.parent / "templates" / template_name
     template_text = read_text(template_path)
-    return template_text.format(**kwargs)
+    
+    template = Template(template_text)
+    return template.safe_substitute(**kwargs)
 
 
 def call_claude_cli_for_plan(

@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
+from string import Template
 from typing import List, Optional
 
 RE_DOCSPEC = re.compile(r".*\.docspec\.md$")
@@ -29,10 +30,15 @@ def read_text(path: Path) -> str:
 
 
 def load_template(template_name: str, **kwargs) -> str:
-    """Load template file and format with variables."""
+    """Load template file and format with variables using string.Template.
+    
+    Safely handles content with curly braces since Template uses $ syntax.
+    """
     template_path = Path(__file__).parent.parent / "templates" / template_name
     template_text = read_text(template_path)
-    return template_text.format(**kwargs)
+    
+    template = Template(template_text)
+    return template.safe_substitute(**kwargs)
 
 
 def target_markdown_for_docspec(docspec_path: Path) -> Optional[Path]:

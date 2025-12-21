@@ -1,15 +1,15 @@
 Based on this information discovery plan:
 <plan>
-{plan}
+${plan}
 </plan>
 
 You need to update two files:
-1. {md_path} - the markdown file
-2. {docspec_path} - the docspec file
+1. ${md_path} - the markdown file
+2. ${docspec_path} - the docspec file
 
 CRITICAL CONSTRAINTS FOR DOCSPEC FILE - YOU MUST PRESERVE THE EXACT STRUCTURE:
 
-1. Read the existing {docspec_path} file FIRST using the Read tool
+1. Read the existing ${docspec_path} file FIRST using the Read tool
 2. PRESERVE EXACTLY:
    - The exact header format (e.g., `# DOCSPEC: Readme` or `# DOCSPEC: [README.md](/README.md)`) - keep it EXACTLY as written
    - The exact one-line description format (e.g., `> A specification that ...`) - keep it EXACTLY as written
@@ -23,13 +23,13 @@ CRITICAL CONSTRAINTS FOR DOCSPEC FILE - YOU MUST PRESERVE THE EXACT STRUCTURE:
    - Do NOT modify title, description, or AGENT INSTRUCTIONS
 
 Task:
-1. Read {docspec_path} and note its EXACT structure
-2. Read {md_path}
+1. Read ${docspec_path} and note its EXACT structure
+2. Read ${md_path}
 3. Explore the repository and discover information about:
    - What the codebase actually contains
    - What files exist that relate to the markdown
    - What the actual structure and content of the markdown is
-4. For {docspec_path}: Update ONLY the content text within sections 1-5. Preserve ALL structure, headers, format, and separators exactly as they were.
-5. For {md_path}: Add any missing information identified in the plan
+4. For ${docspec_path}: Update ONLY the content text within sections 1-5. Preserve ALL structure, headers, format, and separators exactly as they were.
+5. For ${md_path}: Add any missing information identified in the plan
 6. Make changes directly to the files
 
