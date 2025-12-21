@@ -98,7 +98,10 @@ runs:
           exit 0
         fi
 
-        BRANCH="docs/docspec-update-pr-${{ inputs.pr_number }}"
+        # Use unique identifier (timestamp) to ensure each execution creates a unique branch
+        UNIQUE_ID=$(date +%s)
+        BRANCH="docs/docspec-update-pr-${{ inputs.pr_number }}-$UNIQUE_ID"
+        
         git checkout -b "$BRANCH"
         git add -A
         git commit -m "Docs: update from docspec after #${{ inputs.pr_number }}"
