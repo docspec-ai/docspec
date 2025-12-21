@@ -177,9 +177,37 @@ Important: You must output ONLY a unified diff. No explanations, no other text. 
     
     model = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
     
+    # Verify CLI is available
+    try:
+        claude_check = subprocess.run(
+            ["claude", "--version"],
+            text=True,
+            capture_output=True,
+            timeout=10,
+        )
+        if claude_check.returncode != 0:
+            print(f"Warning: 'claude --version' failed: {claude_check.stderr}")
+    except FileNotFoundError:
+        raise RuntimeError(
+            "Claude CLI not found. Please install with: npm install -g @anthropic-ai/claude-code"
+        )
+    except Exception as e:
+        print(f"Warning: Could not verify Claude CLI: {e}")
+    
+    # Check API key
+    if "ANTHROPIC_API_KEY" not in env or not env["ANTHROPIC_API_KEY"]:
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY environment variable is not set or is empty"
+        )
+    
+    cmd = ["claude", "-p", prompt, "--model", model]
+    print(f"Running Claude CLI with model: {model}")
+    print(f"Prompt length: {len(prompt)} characters")
+    print(f"Command: claude -p [prompt] --model {model}")
+    
     try:
         result = subprocess.run(
-            ["claude", "-p", prompt, "--model", model],
+            cmd,
             text=True,
             capture_output=True,
             cwd=str(repo_root),
@@ -194,7 +222,14 @@ Important: You must output ONLY a unified diff. No explanations, no other text. 
         )
     
     if result.returncode != 0:
-        raise RuntimeError(f"Claude CLI failed: {result.stderr}")
+        error_msg = f"Claude CLI failed with return code {result.returncode}"
+        if result.stderr:
+            error_msg += f"\nStderr: {result.stderr}"
+        if result.stdout:
+            error_msg += f"\nStdout: {result.stdout[:1000]}"  # First 1000 chars
+        if not result.stderr and not result.stdout:
+            error_msg += "\nNo output captured (both stdout and stderr are empty)"
+        raise RuntimeError(error_msg)
     
     # Extract unified diff from output
     output = result.stdout.strip()
