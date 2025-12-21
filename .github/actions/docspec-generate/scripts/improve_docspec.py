@@ -235,9 +235,11 @@ def call_claude_cli_for_implementation(
 
 def validate_docspec(docspec_path: Path) -> None:
     """Validate the docspec file using docspec CLI."""
-    cmd = ["docspec", "validate", str(docspec_path)]
+    cmd = ["docspec"]
     if VERBOSE:
         cmd.append("--verbose")
+    cmd.extend(["validate", str(docspec_path)])
+    if VERBOSE:
         print(f"[DEBUG] Running validation with verbose mode: {' '.join(cmd)}")
     
     try:
@@ -296,9 +298,11 @@ def main() -> None:
     
     # Generate docspec if it doesn't exist or overwrite if it does
     print(f"Generating docspec file: {docspec_path}")
-    generate_cmd = ["docspec", "generate", str(docspec_path)]
+    generate_cmd = ["docspec"]
     if VERBOSE:
         generate_cmd.append("--verbose")
+    generate_cmd.extend(["generate", str(docspec_path)])
+    if VERBOSE:
         print(f"[DEBUG] Running: {' '.join(generate_cmd)}")
     
     try:
