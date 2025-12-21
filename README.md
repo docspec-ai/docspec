@@ -111,7 +111,7 @@ This action automatically updates markdown files based on `*.docspec.md` files a
    - Files that changed directly in the PR (docspec files modified in the merge)
    - Files in the same directory as any changed file (sibling docspecs)
    - Files in parent directories, walking up to the repository root (ancestor docspecs)
-3. For each discovered docspec, Claude Code CLI is invoked with built-in tools (Read, Glob, Grep, Bash) to explore the repository and understand the codebase context
+3. For each discovered docspec, Claude Code CLI is invoked with built-in tools to explore the repository and understand the codebase context
 4. Claude generates a unified diff patch to update the target markdown file based on the code changes and docspec requirements
 5. Unified diff patches are validated and applied to update the markdown files
 6. A new PR is opened with the documentation updates
@@ -143,7 +143,7 @@ The action includes multiple guardrails to ensure safe operation:
 - **No new files**: Patches cannot create new files
 - **No non-markdown modifications**: Only markdown files can be modified
 - **Concurrency control**: Prevents multiple workflow runs from conflicting
-- **Controlled environment**: Claude Code CLI runs with built-in tools (Read, Glob, Grep, Bash) in a controlled filesystem environment
+- **Controlled environment**: Claude Code CLI runs with built-in tools in a controlled filesystem environment
 
 ### Manual Docspec Improvement
 
@@ -161,12 +161,12 @@ Add the workflow to your repository: [`.github/workflows/docspec-improve.yml`](.
 
 The workflow uses a two-phase approach with Claude Code CLI:
 
-1. **Discovery Phase**: Claude explores the repository using Read, Glob, and Grep tools (no Edit tool) and creates a detailed information discovery plan identifying:
+1. **Discovery Phase**: Claude explores the repository using available tools (no editing capabilities) and creates a detailed information discovery plan identifying:
    - Missing information in the docspec (what should be documented but isn't)
    - Irrelevant or incorrect information in the docspec (what doesn't match reality)
    - Missing information in the markdown file (gaps in documentation)
 
-2. **Implementation Phase**: Claude uses the Edit, Read, Glob, and Grep tools with `--permission-mode acceptEdits` to update both files based on the discovery plan. It preserves the exact structure of the docspec file (headers, separators, frontmatter, AGENT INSTRUCTIONS section) while only updating the content within sections 1-5.
+2. **Implementation Phase**: Claude uses editing tools with `--permission-mode acceptEdits` to update both files based on the discovery plan. It preserves the exact structure of the docspec file (headers, separators, frontmatter, AGENT INSTRUCTIONS section) while only updating the content within sections 1-5.
 
 Before the discovery phase begins, the workflow:
 - Generates or overwrites the docspec file using `docspec generate`

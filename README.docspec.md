@@ -55,7 +55,7 @@ This document should be updated when:
 - `action.yml` changes (action inputs, outputs, default values)
 - `.github/actions/docspec-claude/scripts/*.py` changes affecting CLI interface
 - `.github/actions/docspec-improve/scripts/*.py` changes affecting CLI interface or workflow behavior
-- `.pre-commit-config.yaml.example` changes
+- `.pre-commit-config.yaml` changes
 
 **Should NOT trigger updates:**
 - Test file changes (`*.test.ts`, `*.spec.ts`)
@@ -76,10 +76,10 @@ The document must contain these sections in order:
 4. **Usage** - Introduction to usage, covering both CLI and library approaches
 5. **CLI Commands** - Subsections for `validate` and `generate` commands with concrete bash examples. Show both file-specific and recursive validation. Explain that validate finds all `*.docspec.md` files when no paths provided, skipping `node_modules`, `.git`, and `dist`.
 6. **Library Usage** - TypeScript examples showing `validateDocspec` and `generateDocspec` imports and usage from `src/index.ts`. Include error handling example.
-7. **Pre-commit Integration** - Complete YAML configuration example from `.pre-commit-config.yaml.example`. Explain that hook passes filenames to validate command, and validator recursively finds docspecs if no paths provided. Include installation command.
+7. **Pre-commit Integration** - Complete YAML configuration example from `.pre-commit-config.yaml`. Explain that hook passes filenames to validate command, and validator recursively finds docspecs if no paths provided. Include installation command.
 8. **GitHub Action Integration** - Overview of both workflows, then separate subsections for each
-   - **Post-Merge Documentation Updates** - Complete workflow YAML with all required inputs. Explain: three-part discovery strategy (changed files, same directory, parent directories), Claude Code CLI usage with built-in tools (Read, Glob, Grep, Bash), unified diff patch generation, PR creation. Document all optional inputs with defaults. List all safety features (max files, diff truncation, unified diff validation, path validation, no new files, no non-markdown modifications, concurrency control, filesystem exploration in controlled environment). Include the file naming convention (`filename.docspec.md` → `filename.md`). Note the local reference option (`uses: ./`).
-   - **Manual Docspec Improvement** - Complete workflow YAML. Explain the two-phase approach: Discovery phase (Read, Glob, Grep tools, no edits), Implementation phase (Edit, Read, Glob, Grep tools with `--permission-mode acceptEdits`). Explain that it generates/overwrites the docspec first using `docspec generate`, then validates after updates. Document the workflow dispatch trigger and required input parameter.
+   - **Post-Merge Documentation Updates** - Complete workflow YAML with all required inputs. Explain: three-part discovery strategy (changed files, same directory, parent directories), Claude Code CLI usage with built-in tools to explore the repository, unified diff patch generation, PR creation. Document all optional inputs with defaults. List all safety features (max files, diff truncation, unified diff validation, path validation, no new files, no non-markdown modifications, concurrency control, filesystem exploration in controlled environment). Include the file naming convention (`filename.docspec.md` → `filename.md`). Note the local reference option (`uses: ./`).
+   - **Manual Docspec Improvement** - Complete workflow YAML. Explain the two-phase approach: Discovery phase (exploration tools only, no editing), Implementation phase (editing tools with `--permission-mode acceptEdits`). Explain that it generates/overwrites the docspec first using `docspec generate`, then validates after updates. Document the workflow dispatch trigger and required input parameter.
 9. **Development** - Commands for running tests (including watch mode) and building
 10. **License** - MIT
 
@@ -111,8 +111,8 @@ The document must contain these sections in order:
 - Document all input parameters with their exact default values from `action.yml`
 - Explain the three-part discovery strategy for finding relevant docspecs (changed files, same directory, parent directories)
 - Clarify that workflows use Claude Code CLI (installed via npm), not the Anthropic API directly
-- Show actual tool configurations (`--tools Read,Glob,Grep` etc.) and permission modes (`--permission-mode acceptEdits`)
-- Document both discovery and implementation phases for the improve workflow
+- Show actual permission modes (`--permission-mode acceptEdits`) but do not mention specific tool names
+- Document both discovery and implementation phases for the improve workflow (refer to "exploration tools" and "editing tools" generically)
 - List all safety features explicitly (max files, diff validation, path validation, no new files, etc.)
 
 **Code examples:**
@@ -140,6 +140,7 @@ The document must contain these sections in order:
 - Duplicate content from `docspec-format.md` (link to it instead)
 - Explain how the validator or generator work internally
 - Document GitHub Actions runner infrastructure
+- Mention specific Claude tools by name (e.g., Read, Glob, Grep, Bash, Edit). Instead, refer to "available tools" or "built-in tools" generically
 
 ## 5. Intentional Omissions
 
