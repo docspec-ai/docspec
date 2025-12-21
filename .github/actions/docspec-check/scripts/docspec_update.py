@@ -27,6 +27,23 @@ def sh(cmd: List[str]) -> str:
     return subprocess.check_output(cmd, text=True).strip()
 
 
+def format_cmd_for_logging(cmd: List[str]) -> str:
+    """Format command for logging, replacing large prompt arguments with summaries."""
+    formatted = []
+    i = 0
+    while i < len(cmd):
+        # Check if this is a prompt argument (-p followed by prompt)
+        if cmd[i] == "-p" and i + 1 < len(cmd):
+            prompt = cmd[i + 1]
+            formatted.append("-p")
+            formatted.append(f"[PROMPT: {len(prompt)} chars]")
+            i += 2
+        else:
+            formatted.append(cmd[i])
+            i += 1
+    return " ".join(formatted)
+
+
 def read_text(path: Path) -> str:
     """Read file content as UTF-8."""
     return path.read_text(encoding="utf-8")
@@ -178,7 +195,7 @@ def call_claude_cli_for_patch(
     print(f"Running Claude CLI to edit files directly with model: {model}")
     print(f"Prompt length: {len(prompt)} characters")
     if VERBOSE:
-        print(f"[DEBUG] Full command: {' '.join(cmd)}")
+        print(f"[DEBUG] Full command: {format_cmd_for_logging(cmd)}")
         print(f"[DEBUG] Working directory: {repo_root}")
     
     try:

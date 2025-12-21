@@ -11,8 +11,26 @@ import os
 import subprocess
 from pathlib import Path
 from string import Template
+from typing import List
 
 VERBOSE = os.getenv("VERBOSE", "true").lower() not in ("false", "0", "no")  # Default to verbose
+
+
+def format_cmd_for_logging(cmd: List[str]) -> str:
+    """Format command for logging, replacing large prompt arguments with summaries."""
+    formatted = []
+    i = 0
+    while i < len(cmd):
+        # Check if this is a prompt argument (-p followed by prompt)
+        if cmd[i] == "-p" and i + 1 < len(cmd):
+            prompt = cmd[i + 1]
+            formatted.append("-p")
+            formatted.append(f"[PROMPT: {len(prompt)} chars]")
+            i += 2
+        else:
+            formatted.append(cmd[i])
+            i += 1
+    return " ".join(formatted)
 
 
 def read_text(path: Path) -> str:
@@ -88,7 +106,7 @@ def call_claude_cli_for_plan(
     print(f"Running Claude CLI for information discovery with model: {model}")
     print(f"Prompt length: {len(prompt)} characters")
     if VERBOSE:
-        print(f"[DEBUG] Full command: {' '.join(cmd)}")
+        print(f"[DEBUG] Full command: {format_cmd_for_logging(cmd)}")
         print(f"[DEBUG] Working directory: {repo_root}")
     
     try:
@@ -180,7 +198,7 @@ def call_claude_cli_for_implementation(
     print(f"Running Claude CLI to edit files directly with model: {model}")
     print(f"Prompt length: {len(prompt)} characters")
     if VERBOSE:
-        print(f"[DEBUG] Full command: {' '.join(cmd)}")
+        print(f"[DEBUG] Full command: {format_cmd_for_logging(cmd)}")
         print(f"[DEBUG] Working directory: {repo_root}")
     
     try:
