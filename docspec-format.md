@@ -1,6 +1,6 @@
 # DOCSPEC: [{{TARGET_FILE}}](/{{TARGET_FILE}})
 
-> One line: what this document is for.
+> A specification that defines how the target document should be maintained by agents.
 
 ## AGENT INSTRUCTIONS
 
