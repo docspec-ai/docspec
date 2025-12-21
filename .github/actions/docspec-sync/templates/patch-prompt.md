@@ -18,6 +18,6 @@ Task:
 2. Understand how the code changes in the diff relate to the documentation
 3. If the markdown file at {md_path} already satisfies the docspec given the code changes, do not make any changes
 4. Only update the markdown file if changes are actually necessary to satisfy the docspec - avoid making unnecessary changes for the sake of doing something
-5. Modify files directly using your available tools
-6. Do not provide any output, no need to waste tokens
+5. Use the Edit tool to modify the markdown file at {md_path} directly if changes are needed
+6. Do not provide any text output - files are modified directly using tools
 

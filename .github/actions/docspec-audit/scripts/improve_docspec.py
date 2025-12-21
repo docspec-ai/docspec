@@ -69,7 +69,7 @@ def call_claude_cli_for_plan(
     cmd = [
         "claude", "-p", prompt, 
         "--model", model,
-        "--tools", "Read,Glob,Grep"
+        "--tools", "default"
     ]
     print(f"Running Claude CLI for information discovery with model: {model}")
     print(f"Prompt length: {len(prompt)} characters")
@@ -130,7 +130,7 @@ def call_claude_cli_for_implementation(
     cmd = [
         "claude", "-p", prompt, 
         "--model", model,
-        "--tools", "Edit,Read,Glob,Grep",
+        "--tools", "default",
         "--permission-mode", "acceptEdits"
     ]
     print(f"Running Claude CLI to edit files directly with model: {model}")
