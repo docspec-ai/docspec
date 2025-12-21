@@ -139,7 +139,7 @@ def call_claude_cli_for_plan(
 {docspec_text}
 </docspec>
 
-Task: Focus on INFORMATION DISCOVERY. Use your available tools (Read, Glob, Grep, Bash) to explore the repository and understand what actually exists, then analyze both files and create a plan that identifies:
+Task: Focus on INFORMATION DISCOVERY. Use all of your available tools to explore the repository and understand what actually exists, then analyze both files and create a plan that identifies:
 
 1. **Missing information in the docspec**: What important details about the markdown file are not captured in sections 1-5?
    - What does the markdown actually contain that isn't mentioned in the docspec?
