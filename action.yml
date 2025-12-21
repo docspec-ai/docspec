@@ -1,0 +1,112 @@
+name: 'Docspec Claude Updater'
+description: 'Automatically update markdown files based on *.docspec.md files after PR merges using Claude API'
+
+inputs:
+  anthropic_api_key:
+    description: 'Anthropic API key for Claude API access'
+    required: true
+  github_token:
+    description: 'GitHub token for creating PRs (use secrets.GITHUB_TOKEN - automatically provided by GitHub Actions)'
+    required: true
+  pr_number:
+    description: 'PR number that was merged'
+    required: true
+  base_sha:
+    description: 'Base SHA of the merged PR'
+    required: true
+  merge_sha:
+    description: 'Merge commit SHA'
+    required: true
+  repo:
+    description: 'Repository in format owner/repo'
+    required: true
+  base_ref:
+    description: 'Base branch name (e.g., main)'
+    required: true
+  max_docspecs:
+    description: 'Maximum number of docspec files to process per merge'
+    required: false
+    default: '10'
+  max_diff_chars:
+    description: 'Maximum characters in PR diff before truncation'
+    required: false
+    default: '120000'
+  anthropic_model:
+    description: 'Anthropic model to use'
+    required: false
+    default: 'claude-3-5-sonnet-latest'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout merge commit
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ inputs.merge_sha }}
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Claude Code CLI
+      shell: bash
+      run: |
+        npm install -g @anthropic-ai/claude-code
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        pip install -r ${{ github.action_path }}/.github/actions/docspec-claude/requirements.txt
+
+    - name: Run docspec updater
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        BASE_SHA: ${{ inputs.base_sha }}
+        MERGE_SHA: ${{ inputs.merge_sha }}
+        REPO: ${{ inputs.repo }}
+        MAX_DOCSPECS: ${{ inputs.max_docspecs }}
+        MAX_DIFF_CHARS: ${{ inputs.max_diff_chars }}
+        ANTHROPIC_MODEL: ${{ inputs.anthropic_model }}
+      run: |
+        python ${{ github.action_path }}/.github/actions/docspec-claude/scripts/docspec_update.py
+
+    - name: Configure git
+      shell: bash
+      run: |
+        git config user.name "docspec-bot"
+        git config user.email "docspec-bot@users.noreply.github.com"
+
+    - name: Create PR if changes exist
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        BASE_REF: ${{ inputs.base_ref }}
+      run: |
+        if git diff --quiet; then
+          echo "No changes detected."
+          exit 0
+        fi
+
+        BRANCH="docs/docspec-update-pr-${{ inputs.pr_number }}"
+        git checkout -b "$BRANCH"
+        git add -A
+        git commit -m "Docs: update from docspec after #${{ inputs.pr_number }}"
+        git push -u origin "$BRANCH"
+
+        gh pr create \
+          --title "Docs: update from docspec after #${{ inputs.pr_number }}" \
+          --body "Automated doc updates based on *.docspec.md after merge of #${{ inputs.pr_number }}." \
+          --base "${{ inputs.base_ref }}" \
+          --head "$BRANCH"
+

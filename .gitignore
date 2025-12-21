@@ -5,4 +5,6 @@ dist/
 *.tsbuildinfo
 coverage/
 *.test.docspec.md
+__pycache__/
+*.pyc
 
