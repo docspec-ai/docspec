@@ -87,6 +87,9 @@ jobs:
             exit 0
           fi
 
+          # Get the default branch name
+          DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)
+
           # Create branch name from markdown file path
           BRANCH_NAME=$(echo "$MARKDOWN_FILE" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
           BRANCH="docs/improve-${BRANCH_NAME}-$(date +%s)"
@@ -100,6 +103,6 @@ jobs:
           gh pr create \
             --title "Docs: improve $MARKDOWN_FILE and its docspec" \
             --body "Automated improvements to $MARKDOWN_FILE and its docspec file using Claude." \
-            --base "main" \
+            --base "$DEFAULT_BRANCH" \
             --head "$BRANCH"
 
