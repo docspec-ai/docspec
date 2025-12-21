@@ -75,7 +75,7 @@ await generateDocspec("path/to/README.docspec.md");
 
 ## Pre-commit Integration
 
-To use docspec with [pre-commit](https://pre-commit.com/), see [`.pre-commit-config.yaml.example`](.pre-commit-config.yaml.example) for the configuration. The hook uses `docspec validate` as the entry point, targets `\.docspec\.md$` files, and passes filenames to the validate command.
+To use docspec with [pre-commit](https://pre-commit.com/), see [`.pre-commit-config.yaml`](.pre-commit-config.yaml) for the configuration. The hook uses `docspec validate` as the entry point, targets `\.docspec\.md$` files, and passes filenames to the validate command.
 
 Then install the pre-commit hooks:
 
