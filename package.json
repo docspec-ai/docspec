@@ -1,6 +1,6 @@
 {
   "name": "docspec",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Docspec is a specification format and toolchain for documentation that is maintained by agents.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
