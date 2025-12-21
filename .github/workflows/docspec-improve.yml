@@ -53,12 +53,14 @@ jobs:
 
       - name: Validate markdown file exists
         shell: bash
+        env:
+          MARKDOWN_FILE: ${{ inputs.markdown_file }}
         run: |
-          if [ ! -f "${{ inputs.markdown_file }}" ]; then
-            echo "Error: Markdown file not found: ${{ inputs.markdown_file }}"
+          if [ ! -f "$MARKDOWN_FILE" ]; then
+            echo "Error: Markdown file not found: $MARKDOWN_FILE"
             exit 1
           fi
-          echo "✅ Markdown file found: ${{ inputs.markdown_file }}"
+          echo "✅ Markdown file found: $MARKDOWN_FILE"
 
       - name: Run docspec improvement
         shell: bash
@@ -86,18 +88,18 @@ jobs:
           fi
 
           # Create branch name from markdown file path
-          BRANCH_NAME=$(echo "${{ inputs.markdown_file }}" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
+          BRANCH_NAME=$(echo "$MARKDOWN_FILE" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
           BRANCH="docs/improve-${BRANCH_NAME}-$(date +%s)"
 
           git checkout -b "$BRANCH"
           git add -A
-          git commit -m "Docs: improve ${{ inputs.markdown_file }} and its docspec"
+          git commit -m "Docs: improve $MARKDOWN_FILE and its docspec"
 
           git push -u origin "$BRANCH"
 
           gh pr create \
-            --title "Docs: improve ${{ inputs.markdown_file }} and its docspec" \
-            --body "Automated improvements to ${{ inputs.markdown_file }} and its docspec file using Claude." \
+            --title "Docs: improve $MARKDOWN_FILE and its docspec" \
+            --body "Automated improvements to $MARKDOWN_FILE and its docspec file using Claude." \
             --base "main" \
             --head "$BRANCH"
 
