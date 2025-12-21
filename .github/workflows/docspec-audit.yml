@@ -1,4 +1,4 @@
-name: Improve markdown and docspec
+name: Audit and improve docspec
 
 on:
   workflow_dispatch:
@@ -13,11 +13,11 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: docspec-improve-${{ github.repository }}-${{ inputs.markdown_file }}
+  group: docspec-audit-${{ github.repository }}-${{ inputs.markdown_file }}
   cancel-in-progress: false
 
 jobs:
-  improve_docspec:
+  audit_docspec:
     runs-on: ubuntu-latest
 
     steps:
@@ -44,7 +44,7 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          pip install -r ${{ github.workspace }}/.github/actions/docspec-improve/requirements.txt
+          pip install -r ${{ github.workspace }}/.github/actions/docspec-audit/requirements.txt
 
       - name: Install Claude Code CLI
         shell: bash
@@ -62,13 +62,13 @@ jobs:
           fi
           echo "✅ Markdown file found: $MARKDOWN_FILE"
 
-      - name: Run docspec improvement
+      - name: Run docspec audit
         shell: bash
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           MARKDOWN_FILE: ${{ inputs.markdown_file }}
         run: |
-          python ${{ github.workspace }}/.github/actions/docspec-improve/scripts/improve_docspec.py
+          python ${{ github.workspace }}/.github/actions/docspec-audit/scripts/improve_docspec.py
 
       - name: Configure git
         shell: bash
@@ -92,17 +92,17 @@ jobs:
 
           # Create branch name from markdown file path
           BRANCH_NAME=$(echo "$MARKDOWN_FILE" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
-          BRANCH="docs/improve-${BRANCH_NAME}-$(date +%s)"
+          BRANCH="docs/audit-${BRANCH_NAME}-$(date +%s)"
 
           git checkout -b "$BRANCH"
           git add -A
-          git commit -m "Docs: improve $MARKDOWN_FILE and its docspec"
+          git commit -m "Docs: audit and improve $MARKDOWN_FILE and its docspec"
 
           git push -u origin "$BRANCH"
 
           gh pr create \
-            --title "Docs: improve $MARKDOWN_FILE and its docspec" \
-            --body "Automated improvements to $MARKDOWN_FILE and its docspec file using Claude." \
+            --title "Docs: audit and improve $MARKDOWN_FILE and its docspec" \
+            --body "Automated audit and improvements to $MARKDOWN_FILE and its docspec file using Claude." \
             --base "$DEFAULT_BRANCH" \
             --head "$BRANCH"
 
