@@ -179,7 +179,7 @@ Important: You must output ONLY a unified diff. No explanations, no other text. 
     
     try:
         result = subprocess.run(
-            ["claude", "-p", prompt],
+            ["claude", "-p", prompt, "--model", model],
             text=True,
             capture_output=True,
             cwd=str(repo_root),
