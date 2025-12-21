@@ -1,28 +1,14 @@
-name: Sync documentation from docspec
+name: Docspec PR check
 
 on:
   pull_request:
     types: [closed]
   workflow_dispatch:
     inputs:
-      commit_sha:
-        description: 'Commit SHA to test against (defaults to HEAD)'
-        required: false
-        type: string
-      base_sha:
-        description: 'Base SHA for diff calculation (defaults to commit_sha^)'
-        required: false
-        type: string
       pr_number:
-        description: 'PR number (for testing, can be any number)'
-        required: false
+        description: 'Pull request number'
+        required: true
         type: string
-        default: '0'
-      base_ref:
-        description: 'Base branch name'
-        required: false
-        type: string
-        default: 'main'
 
 permissions:
   contents: write
@@ -44,27 +30,33 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Fetch PR details
+        id: fetch_pr
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: parseInt('${{ inputs.pr_number }}')
+            });
+            
+            core.setOutput('base_sha', pr.data.base.sha);
+            core.setOutput('merge_sha', pr.data.merge_commit_sha || pr.data.head.sha);
+            core.setOutput('pr_number', pr.data.number.toString());
+            core.setOutput('base_ref', pr.data.base.ref);
+
       - name: Determine commit SHAs
         id: determine_shas
         shell: bash
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            # Manual trigger: use provided commit_sha or default to HEAD
-            COMMIT_SHA="${{ inputs.commit_sha }}"
-            if [ -z "$COMMIT_SHA" ]; then
-              COMMIT_SHA=$(git rev-parse HEAD)
-            fi
-            
-            # Use provided base_sha or default to commit_sha^
-            BASE_SHA="${{ inputs.base_sha }}"
-            if [ -z "$BASE_SHA" ]; then
-              BASE_SHA=$(git rev-parse ${COMMIT_SHA}^)
-            fi
-            
-            echo "base_sha=${BASE_SHA}" >> $GITHUB_OUTPUT
-            echo "merge_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
-            echo "pr_number=${{ inputs.pr_number || '0' }}" >> $GITHUB_OUTPUT
-            echo "base_ref=${{ inputs.base_ref || 'main' }}" >> $GITHUB_OUTPUT
+            # Manual trigger: use PR details from API
+            echo "base_sha=${{ steps.fetch_pr.outputs.base_sha }}" >> $GITHUB_OUTPUT
+            echo "merge_sha=${{ steps.fetch_pr.outputs.merge_sha }}" >> $GITHUB_OUTPUT
+            echo "pr_number=${{ steps.fetch_pr.outputs.pr_number }}" >> $GITHUB_OUTPUT
+            echo "base_ref=${{ steps.fetch_pr.outputs.base_ref }}" >> $GITHUB_OUTPUT
           else
             # PR merge trigger: use PR event data
             echo "base_sha=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT

@@ -1,10 +1,10 @@
-name: Audit and improve docspec
+name: Docspec generate
 
 on:
   workflow_dispatch:
     inputs:
       markdown_file:
-        description: 'Path to markdown file to improve (e.g., README.md)'
+        description: 'Path to markdown file (e.g., README.md)'
         required: true
         type: string
 
