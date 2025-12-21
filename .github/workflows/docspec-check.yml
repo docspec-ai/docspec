@@ -1,4 +1,4 @@
-name: Docspec PR check
+name: Docspec check
 
 on:
   pull_request:
@@ -15,11 +15,11 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: docspec-sync-${{ github.repository }}
+  group: docspec-check-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
-  docspec_sync:
+  docspec_check:
     # Run on PR merge OR manual dispatch
     if: ${{ github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
@@ -65,7 +65,7 @@ jobs:
             echo "base_ref=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Run docspec sync
+      - name: Run docspec check
         uses: ./
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}

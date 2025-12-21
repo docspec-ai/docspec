@@ -48,7 +48,7 @@ Or validate all `*.docspec.md` files in the current directory tree:
 docspec validate
 ```
 
-The validator will recursively find all docspec files, skipping `node_modules`, `.git`, and `dist` directories.
+The validator will recursively find all docspec files, skipping `node_modules`, `.git`, and `dist` directories. Permission errors are handled gracefully and will not cause validation to fail.
 
 #### Generate a new docspec file
 
@@ -62,9 +62,10 @@ This will generate a docspec file that references the target markdown file using
 
 ```typescript
 import { validateDocspec, generateDocspec } from "docspec";
+import type { ValidationResult, DocspecSection } from "docspec";
 
 // Validate a file
-const result = await validateDocspec("path/to/file.docspec.md");
+const result: ValidationResult = await validateDocspec("path/to/file.docspec.md");
 if (!result.valid) {
   console.error("Validation errors:", result.errors);
 }
@@ -72,6 +73,15 @@ if (!result.valid) {
 // Generate a new docspec file
 await generateDocspec("path/to/README.docspec.md");
 ```
+
+The library exports:
+- `validateDocspec()` - Validate a docspec file
+- `generateDocspec()` - Generate a new docspec file
+- `generateDocspecContent()` - Generate docspec content as a string
+- `ValidationResult` - Type for validation results
+- `DocspecSection` - Type for docspec sections
+- `REQUIRED_SECTIONS` - Array of required section names
+- `SECTION_BOILERPLATE` - Boilerplate text for each section
 
 ## Pre-commit Integration
 
@@ -89,8 +99,8 @@ The hook will automatically validate any modified `*.docspec.md` files on commit
 
 Docspec includes two GitHub Actions for different use cases:
 
-1. **Post-merge documentation updates** (`.github/workflows/docspec-sync.yml`) - Automatically syncs markdown files after PR merges
-2. **Manual docspec audit** (`.github/workflows/docspec-audit.yml`) - Manually triggered workflow to audit and improve docspec files
+1. **Post-merge documentation updates** - Automatically syncs markdown files after PR merges (workflow file: `.github/workflows/docspec-check.yml`, workflow name: "Docspec PR check")
+2. **Manual docspec generation** - Manually triggered workflow to generate and improve docspec files (workflow file: `.github/workflows/docspec-generate.yml`, workflow name: "Docspec generate")
 
 ### Post-Merge Documentation Updates
 
@@ -98,7 +108,7 @@ This action automatically updates markdown files based on `*.docspec.md` files a
 
 #### Setup
 
-1. **Add the workflow** to your repository: [`.github/workflows/docspec-sync.yml`](.github/workflows/docspec-sync.yml)
+1. **Add the workflow** to your repository: [`.github/workflows/docspec-check.yml`](.github/workflows/docspec-check.yml)
 
 2. **Configure secrets**:
    - Add `ANTHROPIC_API_KEY` to your repository secrets (Settings → Secrets and variables → Actions)
@@ -128,7 +138,7 @@ The action supports optional inputs:
 - `max_diff_chars` (default: `120000`) - Maximum characters in PR diff before truncation
 - `anthropic_model` (default: `claude-sonnet-4-5`) - Anthropic model to use (short alias for the Claude Sonnet 4.5 model)
 
-See [`.github/workflows/docspec-sync.yml`](.github/workflows/docspec-sync.yml) for the complete workflow file and [`action.yml`](action.yml) for all available configuration options.
+See [`.github/workflows/docspec-check.yml`](.github/workflows/docspec-check.yml) for the complete workflow file and [`action.yml`](action.yml) for all available configuration options.
 
 **Note**: For this repository's own workflow files, you can use the local reference `uses: ./` (at the action level in the step) instead of the published action reference. This applies to both the post-merge workflow and the manual improvement workflow.
 
@@ -145,9 +155,9 @@ The action includes multiple guardrails to ensure safe operation:
 - **Concurrency control**: Prevents multiple workflow runs from conflicting
 - **Controlled environment**: Claude Code CLI runs with built-in tools in a controlled filesystem environment
 
-### Manual Docspec Audit
+### Manual Docspec Generation
 
-The docspec-audit workflow allows you to manually trigger an audit and improvements to a docspec file and its associated markdown file. This is useful when you want to:
+The docspec-generate workflow allows you to manually trigger generation and improvements to a docspec file and its associated markdown file. This is useful when you want to:
 
 - Update a docspec to better reflect the current state of the markdown
 - Discover gaps in documentation that aren't triggered by code changes
@@ -155,7 +165,7 @@ The docspec-audit workflow allows you to manually trigger an audit and improveme
 
 #### Setup
 
-Add the workflow to your repository: [`.github/workflows/docspec-audit.yml`](.github/workflows/docspec-audit.yml)
+Add the workflow to your repository: [`.github/workflows/docspec-generate.yml`](.github/workflows/docspec-generate.yml)
 
 #### How It Works
 
