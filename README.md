@@ -178,7 +178,6 @@ Example with custom configuration:
 ```
 
 **Note**: For this repository's own workflow, you can use the local reference `./` instead of the published action.
-```
 
 ### Safety Features
 
