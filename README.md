@@ -99,7 +99,7 @@ The hook will automatically validate any modified `*.docspec.md` files on commit
 
 Docspec includes two GitHub Actions for different use cases:
 
-1. **Post-merge documentation updates** - Automatically syncs markdown files after PR merges (workflow file: `.github/workflows/docspec-check.yml`, workflow name: "Docspec PR check")
+1. **Post-merge documentation updates** - Automatically syncs markdown files after PR merges (workflow file: `.github/workflows/docspec-check.yml`, workflow name: "Docspec check")
 2. **Manual docspec generation** - Manually triggered workflow to generate and improve docspec files (workflow file: `.github/workflows/docspec-generate.yml`, workflow name: "Docspec generate")
 
 ### Post-Merge Documentation Updates
