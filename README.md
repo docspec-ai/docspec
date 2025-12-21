@@ -94,7 +94,7 @@ Docspec includes two GitHub Actions for different use cases:
 
 ### Post-Merge Documentation Updates
 
-This action automatically updates markdown files based on `*.docspec.md` files after PR merges. It uses Claude Code CLI (not the Anthropic API directly) to explore the repository and generate unified diff patches for documentation updates.
+This action automatically updates markdown files based on `*.docspec.md` files after PR merges. It uses Claude Code CLI (not the Anthropic API directly) to explore the repository and directly edit documentation files.
 
 #### Setup
 
@@ -112,9 +112,8 @@ This action automatically updates markdown files based on `*.docspec.md` files a
    - Files in the same directory as any changed file (sibling docspecs)
    - Files in parent directories, walking up to the repository root (ancestor docspecs)
 3. For each discovered docspec, Claude Code CLI is invoked with built-in tools to explore the repository and understand the codebase context
-4. Claude generates a unified diff patch to update the target markdown file based on the code changes and docspec requirements
-5. Unified diff patches are validated and applied to update the markdown files
-6. A new PR is opened with the documentation updates
+4. Claude directly edits the target markdown file based on the code changes and docspec requirements
+5. A new PR is opened with the documentation updates
 
 **File naming convention**: The action uses the pattern `filename.docspec.md` → `filename.md`:
 - `README.docspec.md` → targets `README.md`
@@ -138,9 +137,8 @@ The action includes multiple guardrails to ensure safe operation:
 
 - **Max files limit**: Prevents processing too many files in a single run (default: 10)
 - **Diff truncation**: Large PR diffs are truncated to stay within token limits (default: 120,000 characters)
-- **Unified diff validation**: Only accepts properly formatted patches that start with `diff --git` or `--- ` markers
-- **Path validation**: Patches must reference the expected file path
-- **No new files**: Patches cannot create new files
+- **File modification validation**: Verifies that files were actually modified and not deleted
+- **No new files**: Only existing markdown files can be modified
 - **No non-markdown modifications**: Only markdown files can be modified
 - **Concurrency control**: Prevents multiple workflow runs from conflicting
 - **Controlled environment**: Claude Code CLI runs with built-in tools in a controlled filesystem environment
