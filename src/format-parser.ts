@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { logger } from "./logger";
 
 export interface ParsedSection {
   name: string;
@@ -17,7 +18,9 @@ export interface ParsedFormat {
  * Parse the docspec format file
  */
 export function parseFormatFile(formatFilePath: string): ParsedFormat {
+  logger.debug(`Reading format file: ${formatFilePath}`);
   const content = fs.readFileSync(formatFilePath, "utf-8");
+  logger.debug(`Format file read: ${content.length} characters`);
   return parseFormatContent(content);
 }
 
@@ -26,6 +29,7 @@ export function parseFormatFile(formatFilePath: string): ParsedFormat {
  */
 export function parseFormatContent(content: string): ParsedFormat {
   const lines = content.split("\n");
+  logger.debug(`Parsing format content: ${lines.length} lines`);
   
   // Look for AGENT INSTRUCTIONS section first
   let agentInstructions: string | undefined;
@@ -35,6 +39,7 @@ export function parseFormatContent(content: string): ParsedFormat {
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].trim() === "## AGENT INSTRUCTIONS") {
       agentInstructionsStart = i;
+      logger.debug(`Found AGENT INSTRUCTIONS section at line ${i + 1}`);
       break;
     }
   }
@@ -69,7 +74,10 @@ export function parseFormatContent(content: string): ParsedFormat {
     
     if (agentContent) {
       agentInstructions = agentContent;
+      logger.debug(`Extracted agent instructions: ${agentContent.length} characters`);
     }
+  } else {
+    logger.debug("No AGENT INSTRUCTIONS section found");
   }
   
   // Find all section headers: ## N. Section Name
@@ -89,12 +97,16 @@ export function parseFormatContent(content: string): ParsedFormat {
         number: parseInt(match[1], 10),
         name: match[2].trim(),
       });
+      logger.debug(`Found section header: ${match[1]}. ${match[2].trim()} at line ${i + 1}`);
     }
   }
   
   if (sectionHeaders.length === 0) {
+    logger.debug("No section headers found in format file");
     throw new Error("No section headers found in format file. Expected format: ## N. Section Name");
   }
+  
+  logger.debug(`Found ${sectionHeaders.length} section header(s)`);
   
   // Extract template: everything before the first numbered section header
   // But exclude the AGENT INSTRUCTIONS section if it exists
@@ -105,12 +117,15 @@ export function parseFormatContent(content: string): ParsedFormat {
     // AGENT INSTRUCTIONS is between title and first section
     // Template is everything before AGENT INSTRUCTIONS
     templateBeforeSections = lines.slice(0, agentInstructionsStart).join("\n").trim();
+    logger.debug("Template extracted before AGENT INSTRUCTIONS section");
   } else {
     // No AGENT INSTRUCTIONS, use everything before first section
     templateBeforeSections = lines.slice(0, firstSectionLine).join("\n").trim();
+    logger.debug("Template extracted before first section");
   }
   
   const template = templateBeforeSections + "\n\n{{AGENT_INSTRUCTIONS}}\n\n{{SECTIONS}}\n";
+  logger.debug(`Template length: ${template.length} characters`);
   
   // Extract sections
   const sections: ParsedSection[] = [];
@@ -132,6 +147,7 @@ export function parseFormatContent(content: string): ParsedFormat {
       .join("\n")
       .trim();
     
+    logger.debug(`Extracted section "${header.name}": ${sectionContent.length} characters`);
     sections.push({
       name: header.name,
       boilerplate: sectionContent,
@@ -141,6 +157,7 @@ export function parseFormatContent(content: string): ParsedFormat {
   
   // Sort sections by number to ensure correct order
   sections.sort((a, b) => a.number - b.number);
+  logger.debug(`Parsed ${sections.length} section(s) from format file`);
   
   return {
     sections,
@@ -162,12 +179,16 @@ export function getFormatFilePath(): string {
     path.join(process.cwd(), "docspec-format.md"), // Current working directory
   ];
   
+  logger.debug(`Searching for format file in ${possiblePaths.length} possible location(s)`);
   for (const formatPath of possiblePaths) {
+    logger.debug(`Checking: ${formatPath}`);
     if (fs.existsSync(formatPath)) {
+      logger.debug(`Format file found: ${formatPath}`);
       return formatPath;
     }
   }
   
+  logger.debug("Format file not found in any of the expected locations");
   // Default to root if none found (will throw error if file doesn't exist)
   return possiblePaths[0];
 }

@@ -17,11 +17,31 @@ RE_DOCSPEC = re.compile(r".*\.docspec\.md$")
 
 MAX_DOCSPECS = int(os.getenv("MAX_DOCSPECS", "10"))
 MAX_DIFF_CHARS = int(os.getenv("MAX_DIFF_CHARS", "120000"))  # guardrail
+VERBOSE = os.getenv("VERBOSE", "true").lower() not in ("false", "0", "no")  # Default to verbose
 
 
 def sh(cmd: List[str]) -> str:
     """Run shell command and return stdout as string."""
+    if VERBOSE:
+        print(f"[DEBUG] Running command: {' '.join(cmd)}")
     return subprocess.check_output(cmd, text=True).strip()
+
+
+def format_cmd_for_logging(cmd: List[str]) -> str:
+    """Format command for logging, replacing large prompt arguments with summaries."""
+    formatted = []
+    i = 0
+    while i < len(cmd):
+        # Check if this is a prompt argument (-p followed by prompt)
+        if cmd[i] == "-p" and i + 1 < len(cmd):
+            prompt = cmd[i + 1]
+            formatted.append("-p")
+            formatted.append(f"[PROMPT: {len(prompt)} chars]")
+            i += 2
+        else:
+            formatted.append(cmd[i])
+            i += 1
+    return " ".join(formatted)
 
 
 def read_text(path: Path) -> str:
@@ -166,10 +186,20 @@ def call_claude_cli_for_patch(
         "--tools", "default",
         "--permission-mode", "acceptEdits"
     ]
+    
+    # Add verbose flag if enabled
+    if VERBOSE:
+        cmd.append("--verbose")
+        print("[DEBUG] Verbose mode enabled for Claude CLI")
+    
     print(f"Running Claude CLI to edit files directly with model: {model}")
     print(f"Prompt length: {len(prompt)} characters")
+    if VERBOSE:
+        print(f"[DEBUG] Full command: {format_cmd_for_logging(cmd)}")
+        print(f"[DEBUG] Working directory: {repo_root}")
     
     try:
+        # Always capture output, but print it in verbose mode
         result = subprocess.run(
             cmd,
             text=True,
@@ -178,6 +208,19 @@ def call_claude_cli_for_patch(
             env=env,
             timeout=300,  # 5 minute timeout
         )
+        
+        # In verbose mode, print the captured output
+        if VERBOSE:
+            print("\n" + "="*80)
+            print("CLAUDE CLI OUTPUT (verbose mode):")
+            print("="*80 + "\n")
+            if result.stdout:
+                print(result.stdout)
+            if result.stderr:
+                print("STDERR:", result.stderr)
+            print("\n" + "="*80)
+            print("END OF CLAUDE CLI OUTPUT")
+            print("="*80 + "\n")
     except subprocess.TimeoutExpired:
         raise RuntimeError("Claude CLI timed out after 5 minutes")
     except FileNotFoundError:
@@ -187,28 +230,53 @@ def call_claude_cli_for_patch(
     
     if result.returncode != 0:
         error_msg = f"Claude CLI failed with return code {result.returncode}"
-        if result.stderr:
-            error_msg += f"\nStderr: {result.stderr}"
-        if result.stdout:
-            error_msg += f"\nStdout: {result.stdout[:1000]}"  # First 1000 chars
-        if not result.stderr and not result.stdout:
-            error_msg += "\nNo output captured (both stdout and stderr are empty)"
+        if VERBOSE:
+            # In verbose mode, output was already streamed
+            error_msg += "\n(Check output above for details)"
+        else:
+            if result.stderr:
+                error_msg += f"\nStderr: {result.stderr}"
+            if result.stdout:
+                error_msg += f"\nStdout: {result.stdout[:1000]}"  # First 1000 chars
+            if not result.stderr and not result.stdout:
+                error_msg += "\nNo output captured (both stdout and stderr are empty)"
         raise RuntimeError(error_msg)
     
     # Verify file was actually modified
     print("✅ Claude has updated the file directly")
+    if VERBOSE:
+        print("[DEBUG] Claude CLI completed successfully")
 
 
 def main() -> None:
     """Main entry point."""
+    if VERBOSE:
+        print("[DEBUG] Verbose logging enabled")
+        print(f"[DEBUG] MAX_DOCSPECS: {MAX_DOCSPECS}")
+        print(f"[DEBUG] MAX_DIFF_CHARS: {MAX_DIFF_CHARS}")
+    
     repo = os.environ["REPO"]
     pr_number = os.environ["PR_NUMBER"]
     base_sha = os.environ["BASE_SHA"]
     merge_sha = os.environ["MERGE_SHA"]
+    
+    if VERBOSE:
+        print(f"[DEBUG] Repo: {repo}")
+        print(f"[DEBUG] PR number: {pr_number}")
+        print(f"[DEBUG] Base SHA: {base_sha}")
+        print(f"[DEBUG] Merge SHA: {merge_sha}")
 
     repo_root = Path(".").resolve()
+    if VERBOSE:
+        print(f"[DEBUG] Repository root: {repo_root}")
+    
     changed = list_changed_files(base_sha, merge_sha)
+    if VERBOSE:
+        print(f"[DEBUG] Changed files ({len(changed)}): {', '.join(changed[:10])}{'...' if len(changed) > 10 else ''}")
+    
     diff = pr_diff_text(base_sha, merge_sha)
+    if VERBOSE:
+        print(f"[DEBUG] PR diff length: {len(diff)} characters")
 
     docspec_paths = find_candidate_docspecs(repo_root, changed)
     if not docspec_paths:
@@ -216,17 +284,31 @@ def main() -> None:
         return
 
     print(f"Found {len(docspec_paths)} docspec file(s) to process.")
+    if VERBOSE:
+        for i, path in enumerate(docspec_paths, 1):
+            print(f"[DEBUG]   {i}. {path}")
 
     for docspec_path in docspec_paths:
         target_md = target_markdown_for_docspec(docspec_path)
         if not target_md or not target_md.exists():
             print(f"Skipping docspec without valid target: {docspec_path}")
+            if VERBOSE:
+                print(f"[DEBUG] Target markdown would be: {target_md}")
             continue
 
         print(f"Processing {docspec_path} -> {target_md}")
-
+        
+        if VERBOSE:
+            print(f"[DEBUG] Reading docspec file: {docspec_path}")
         docspec = read_text(docspec_path)
+        if VERBOSE:
+            print(f"[DEBUG] Docspec file size: {len(docspec)} characters")
+        
+        if VERBOSE:
+            print(f"[DEBUG] Reading target markdown file: {target_md}")
         md_text = read_text(target_md)
+        if VERBOSE:
+            print(f"[DEBUG] Markdown file size: {len(md_text)} characters")
 
         # Store original content to check if file was modified
         original_md_text = md_text
@@ -240,11 +322,20 @@ def main() -> None:
             raise RuntimeError(f"Markdown file was deleted: {target_md}")
         
         new_md_text = read_text(target_md)
+        if VERBOSE:
+            print(f"[DEBUG] New markdown file size: {len(new_md_text)} characters")
+            print(f"[DEBUG] File changed: {new_md_text != original_md_text}")
+        
         if new_md_text == original_md_text:
             print(f"No change needed for {target_md}")
             continue
         
         print(f"Updated {target_md}.")
+        if VERBOSE:
+            # Show a diff summary
+            original_lines = original_md_text.splitlines()
+            new_lines = new_md_text.splitlines()
+            print(f"[DEBUG] Line count: {len(original_lines)} -> {len(new_lines)}")
 
     print("Done.")
 
