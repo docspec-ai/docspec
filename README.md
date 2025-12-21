@@ -50,6 +50,12 @@ docspec validate
 
 The validator will recursively find all docspec files, skipping `node_modules`, `.git`, and `dist` directories. Permission errors are handled gracefully and will not cause validation to fail.
 
+Add the `--verbose` flag for detailed logging output:
+
+```bash
+docspec --verbose validate
+```
+
 #### Generate a new docspec file
 
 ```bash
@@ -57,6 +63,12 @@ docspec generate path/to/README.docspec.md
 ```
 
 This will generate a docspec file that references the target markdown file using the naming convention: `filename.docspec.md` targets `filename.md` (e.g., `README.docspec.md` references `README.md`, `docs/guide.docspec.md` references `docs/guide.md`).
+
+Add the `--verbose` flag for detailed logging output:
+
+```bash
+docspec --verbose generate path/to/README.docspec.md
+```
 
 ### Library Usage
 
@@ -82,6 +94,8 @@ The library exports:
 - `DocspecSection` - Type for docspec sections
 - `REQUIRED_SECTIONS` - Array of required section names
 - `SECTION_BOILERPLATE` - Boilerplate text for each section
+- `logger` - Logger instance for verbose output
+- `LogLevel` - Enum for log levels
 
 ## Pre-commit Integration
 
