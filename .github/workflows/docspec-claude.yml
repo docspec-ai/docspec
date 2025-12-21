@@ -3,6 +3,26 @@ name: Update docs from docspec after merge
 on:
   pull_request:
     types: [closed]
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA to test against (defaults to HEAD)'
+        required: false
+        type: string
+      base_sha:
+        description: 'Base SHA for diff calculation (defaults to commit_sha^)'
+        required: false
+        type: string
+      pr_number:
+        description: 'PR number (for testing, can be any number)'
+        required: false
+        type: string
+        default: '0'
+      base_ref:
+        description: 'Base branch name'
+        required: false
+        type: string
+        default: 'main'
 
 permissions:
   contents: write
@@ -14,21 +34,53 @@ concurrency:
 
 jobs:
   docspec_update:
-    if: ${{ github.event.pull_request.merged == true }}
+    # Run on PR merge OR manual dispatch
+    if: ${{ github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine commit SHAs
+        id: determine_shas
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            # Manual trigger: use provided commit_sha or default to HEAD
+            COMMIT_SHA="${{ inputs.commit_sha }}"
+            if [ -z "$COMMIT_SHA" ]; then
+              COMMIT_SHA=$(git rev-parse HEAD)
+            fi
+            
+            # Use provided base_sha or default to commit_sha^
+            BASE_SHA="${{ inputs.base_sha }}"
+            if [ -z "$BASE_SHA" ]; then
+              BASE_SHA=$(git rev-parse ${COMMIT_SHA}^)
+            fi
+            
+            echo "base_sha=${BASE_SHA}" >> $GITHUB_OUTPUT
+            echo "merge_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
+            echo "pr_number=${{ inputs.pr_number || '0' }}" >> $GITHUB_OUTPUT
+            echo "base_ref=${{ inputs.base_ref || 'main' }}" >> $GITHUB_OUTPUT
+          else
+            # PR merge trigger: use PR event data
+            echo "base_sha=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
+            echo "merge_sha=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_OUTPUT
+            echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+            echo "base_ref=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Run docspec updater
         uses: ./
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          pr_number: ${{ github.event.pull_request.number }}
-          base_sha: ${{ github.event.pull_request.base.sha }}
-          merge_sha: ${{ github.event.pull_request.merge_commit_sha }}
+          pr_number: ${{ steps.determine_shas.outputs.pr_number }}
+          base_sha: ${{ steps.determine_shas.outputs.base_sha }}
+          merge_sha: ${{ steps.determine_shas.outputs.merge_sha }}
           repo: ${{ github.repository }}
-          base_ref: ${{ github.event.pull_request.base.ref }}
+          base_ref: ${{ steps.determine_shas.outputs.base_ref }}
 
