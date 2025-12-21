@@ -150,7 +150,7 @@ def extract_unified_diff(output: str) -> str:
 
 
 def call_claude_cli_for_patch(
-    diff: str, docspec: str, md_path: str, md_text: str, repo_root: Path
+    diff: str, docspec: str, md_path: str, md_text: str, docspec_path: str, repo_root: Path
 ) -> str:
     """Call Claude Code CLI to generate unified diff patch."""
     prompt = load_template(
@@ -159,6 +159,7 @@ def call_claude_cli_for_patch(
         docspec=docspec,
         md_path=md_path,
         md_text=md_text,
+        docspec_path=docspec_path,
     )
     
     # Call claude CLI
@@ -271,7 +272,7 @@ def main() -> None:
         md_text = read_text(target_md)
 
         patch = call_claude_cli_for_patch(
-            diff, docspec, str(target_md), md_text, repo_root
+            diff, docspec, str(target_md), md_text, str(docspec_path.relative_to(repo_root)), repo_root
         )
         if not patch:
             print(f"No change needed for {target_md}")

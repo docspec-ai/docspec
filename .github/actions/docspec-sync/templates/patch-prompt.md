@@ -4,7 +4,7 @@ Merged PR diff (context):
 </diff>
 
 Docspec (requirements for the markdown file):
-<docspec path="{md_path}.docspec">
+<docspec path="{docspec_path}">
 {docspec}
 </docspec>
 
