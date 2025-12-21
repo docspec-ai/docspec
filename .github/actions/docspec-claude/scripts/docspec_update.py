@@ -252,9 +252,19 @@ def main() -> None:
             continue
 
         # Hard safety: patch must mention the file path
-        if str(target_md) not in patch:
+        # Unified diffs use relative paths, so check for relative path and common formats
+        target_relative = str(target_md.relative_to(repo_root))
+        target_filename = target_md.name
+        # Check for relative path, filename, and common git diff path formats (a/... and b/...)
+        path_found = (
+            target_relative in patch
+            or target_filename in patch
+            or f"a/{target_relative}" in patch
+            or f"b/{target_relative}" in patch
+        )
+        if not path_found:
             raise RuntimeError(
-                f"Patch did not reference expected path: {target_md}"
+                f"Patch did not reference expected path: {target_relative} (or {target_filename})"
             )
 
         apply_patch(patch)
