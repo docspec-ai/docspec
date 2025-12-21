@@ -34,7 +34,7 @@ inputs:
   anthropic_model:
     description: 'Anthropic model to use'
     required: false
-    default: 'claude-3-5-sonnet-latest'
+    default: 'claude-3-5-sonnet-20241022'
 
 runs:
   using: 'composite'

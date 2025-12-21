@@ -175,7 +175,7 @@ Important: You must output ONLY a unified diff. No explanations, no other text. 
     if "ANTHROPIC_API_KEY" in os.environ:
         env["ANTHROPIC_API_KEY"] = os.environ["ANTHROPIC_API_KEY"]
     
-    model = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
+    model = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
     
     # Verify CLI is available
     try:

@@ -157,7 +157,7 @@ The action supports optional inputs:
 
 - `max_docspecs` (default: `10`) - Maximum number of docspec files to process per merge
 - `max_diff_chars` (default: `120000`) - Maximum characters in PR diff before truncation
-- `anthropic_model` (default: `claude-3-5-sonnet-latest`) - Anthropic model to use
+- `anthropic_model` (default: `claude-3-5-sonnet-20241022`) - Anthropic model to use
 
 Example with custom configuration:
 
