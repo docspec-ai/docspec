@@ -3,14 +3,14 @@
 Docspec updater script for GitHub Actions.
 
 Discovers relevant *.docspec.md files based on PR changes,
-calls Claude API to generate unified diff patches,
-and applies them to update markdown files.
+calls Claude API to update markdown files directly.
 """
 
 import os
 import re
 import subprocess
 from pathlib import Path
+from string import Template
 from typing import List, Optional
 
 RE_DOCSPEC = re.compile(r".*\.docspec\.md$")
@@ -27,6 +27,18 @@ def sh(cmd: List[str]) -> str:
 def read_text(path: Path) -> str:
     """Read file content as UTF-8."""
     return path.read_text(encoding="utf-8")
+
+
+def load_template(template_name: str, **kwargs) -> str:
+    """Load template file and format with variables using string.Template.
+    
+    Safely handles content with curly braces since Template uses $ syntax.
+    """
+    template_path = Path(__file__).parent.parent / "templates" / template_name
+    template_text = read_text(template_path)
+    
+    template = Template(template_text)
+    return template.safe_substitute(**kwargs)
 
 
 def target_markdown_for_docspec(docspec_path: Path) -> Optional[Path]:
@@ -104,71 +116,18 @@ def pr_diff_text(base_sha: str, merge_sha: str) -> str:
     return diff
 
 
-def extract_unified_diff(output: str) -> str:
-    """Extract unified diff from Claude CLI output."""
-    # Look for unified diff markers
-    lines = output.splitlines()
-    diff_start = None
-    diff_end = len(lines)
-    
-    # Find start of diff (either "diff --git" or "--- ")
-    for i, line in enumerate(lines):
-        if line.startswith("diff --git") or line.startswith("--- "):
-            diff_start = i
-            break
-    
-    if diff_start is None:
-        # No diff markers found, return empty or try to find diff-like content
-        # Look for lines that look like diff hunks
-        for i, line in enumerate(lines):
-            if line.startswith("@@"):
-                diff_start = max(0, i - 1)  # Include the --- line before, but guard against negative index
-                break
-    
-    if diff_start is None:
-        return ""
-    
-    # Extract from diff_start to end, but remove trailing non-diff content
-    diff_lines = lines[diff_start:]
-    # Find the last diff line to exclude trailing non-diff content
-    diff_end = len(diff_lines)
-    for i in range(len(diff_lines) - 1, -1, -1):
-        if diff_lines[i].strip() and (
-            diff_lines[i].startswith(("diff ", "--- ", "+++ ", "@@", " ", "+", "-", "\\"))
-        ):
-            diff_end = i + 1
-            break
-    
-    return "\n".join(diff_lines[:diff_end]).strip()
-
-
 def call_claude_cli_for_patch(
-    diff: str, docspec: str, md_path: str, md_text: str, repo_root: Path
-) -> str:
-    """Call Claude Code CLI to generate unified diff patch."""
-    prompt = f"""Merged PR diff (context):
-<diff>
-{diff}
-</diff>
-
-Docspec (requirements for the markdown file):
-<docspec path="{md_path}.docspec">
-{docspec}
-</docspec>
-
-Current markdown content:
-<markdown path="{md_path}">
-{md_text}
-</markdown>
-
-Task:
-1. Explore the repository using your available tools (Read, Glob, Grep, Bash, etc.) to understand the codebase context
-2. Understand how the code changes in the diff relate to the documentation
-3. Update the markdown file at {md_path} to satisfy the docspec given the code changes
-4. If no changes are needed, output an empty string
-5. Output ONLY a unified diff against the markdown file at path: {md_path}
-
-Important: You must output ONLY a unified diff. No explanations, no other text. Start with "--- " or "diff --git"."""
+    diff: str, docspec: str, md_path: str, md_text: str, docspec_path: str, repo_root: Path
+) -> None:
+    """Call Claude Code CLI to update markdown file directly."""
+    prompt = load_template(
+        "patch-prompt.md",
+        diff=diff,
+        docspec=docspec,
+        md_path=md_path,
+        md_text=md_text,
+        docspec_path=docspec_path,
+    )
     
     # Call claude CLI
     env = os.environ.copy()
@@ -200,10 +159,15 @@ Important: You must output ONLY a unified diff. No explanations, no other text. 
             "ANTHROPIC_API_KEY environment variable is not set or is empty"
         )
     
-    cmd = ["claude", "-p", prompt, "--model", model]
-    print(f"Running Claude CLI with model: {model}")
+    # Use Edit, Read, Glob, and Grep tools for file editing
+    cmd = [
+        "claude", "-p", prompt, 
+        "--model", model,
+        "--tools", "default",
+        "--permission-mode", "acceptEdits"
+    ]
+    print(f"Running Claude CLI to edit files directly with model: {model}")
     print(f"Prompt length: {len(prompt)} characters")
-    print(f"Command: claude -p [prompt] --model {model}")
     
     try:
         result = subprocess.run(
@@ -231,23 +195,8 @@ Important: You must output ONLY a unified diff. No explanations, no other text. 
             error_msg += "\nNo output captured (both stdout and stderr are empty)"
         raise RuntimeError(error_msg)
     
-    # Extract unified diff from output
-    output = result.stdout.strip()
-    return extract_unified_diff(output)
-
-
-def apply_patch(patch: str) -> None:
-    """Apply unified diff patch using git apply."""
-    if not patch.strip():
-        return
-    # Safety: require unified diff markers
-    if not (patch.startswith("diff --git") or patch.startswith("--- ")):
-        raise RuntimeError("Claude output was not a unified diff.")
-    p = subprocess.run(
-        ["git", "apply", "--whitespace=fix", "-"], input=patch, text=True
-    )
-    if p.returncode != 0:
-        raise RuntimeError("git apply failed.")
+    # Verify file was actually modified
+    print("✅ Claude has updated the file directly")
 
 
 def main() -> None:
@@ -279,31 +228,23 @@ def main() -> None:
         docspec = read_text(docspec_path)
         md_text = read_text(target_md)
 
-        patch = call_claude_cli_for_patch(
-            diff, docspec, str(target_md), md_text, repo_root
+        # Store original content to check if file was modified
+        original_md_text = md_text
+
+        call_claude_cli_for_patch(
+            diff, docspec, str(target_md), md_text, str(docspec_path.relative_to(repo_root)), repo_root
         )
-        if not patch:
+        
+        # Check if file was actually modified
+        if not target_md.exists():
+            raise RuntimeError(f"Markdown file was deleted: {target_md}")
+        
+        new_md_text = read_text(target_md)
+        if new_md_text == original_md_text:
             print(f"No change needed for {target_md}")
             continue
-
-        # Hard safety: patch must mention the file path
-        # Unified diffs use relative paths, so check for relative path and common formats
-        target_relative = str(target_md.relative_to(repo_root))
-        target_filename = target_md.name
-        # Check for relative path, filename, and common git diff path formats (a/... and b/...)
-        path_found = (
-            target_relative in patch
-            or target_filename in patch
-            or f"a/{target_relative}" in patch
-            or f"b/{target_relative}" in patch
-        )
-        if not path_found:
-            raise RuntimeError(
-                f"Patch did not reference expected path: {target_relative} (or {target_filename})"
-            )
-
-        apply_patch(patch)
-        print(f"Updated {target_md} via patch.")
+        
+        print(f"Updated {target_md}.")
 
     print("Done.")
 

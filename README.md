@@ -89,8 +89,8 @@ The hook will automatically validate any modified `*.docspec.md` files on commit
 
 Docspec includes two GitHub Actions for different use cases:
 
-1. **Post-merge documentation updates** (`.github/workflows/docspec-claude.yml`) - Automatically updates markdown files after PR merges
-2. **Manual docspec improvement** (`.github/workflows/docspec-improve.yml`) - Manually triggered workflow to improve docspec files
+1. **Post-merge documentation updates** (`.github/workflows/docspec-sync.yml`) - Automatically syncs markdown files after PR merges
+2. **Manual docspec audit** (`.github/workflows/docspec-audit.yml`) - Manually triggered workflow to audit and improve docspec files
 
 ### Post-Merge Documentation Updates
 
@@ -98,7 +98,7 @@ This action automatically updates markdown files based on `*.docspec.md` files a
 
 #### Setup
 
-1. **Add the workflow** to your repository: [`.github/workflows/docspec-claude.yml`](.github/workflows/docspec-claude.yml)
+1. **Add the workflow** to your repository: [`.github/workflows/docspec-sync.yml`](.github/workflows/docspec-sync.yml)
 
 2. **Configure secrets**:
    - Add `ANTHROPIC_API_KEY` to your repository secrets (Settings → Secrets and variables → Actions)
@@ -128,7 +128,7 @@ The action supports optional inputs:
 - `max_diff_chars` (default: `120000`) - Maximum characters in PR diff before truncation
 - `anthropic_model` (default: `claude-sonnet-4-5`) - Anthropic model to use (short alias for the Claude Sonnet 4.5 model)
 
-See [`.github/workflows/docspec-claude.yml`](.github/workflows/docspec-claude.yml) for the complete workflow file and [`action.yml`](action.yml) for all available configuration options.
+See [`.github/workflows/docspec-sync.yml`](.github/workflows/docspec-sync.yml) for the complete workflow file and [`action.yml`](action.yml) for all available configuration options.
 
 **Note**: For this repository's own workflow files, you can use the local reference `uses: ./` (at the action level in the step) instead of the published action reference. This applies to both the post-merge workflow and the manual improvement workflow.
 
@@ -145,9 +145,9 @@ The action includes multiple guardrails to ensure safe operation:
 - **Concurrency control**: Prevents multiple workflow runs from conflicting
 - **Controlled environment**: Claude Code CLI runs with built-in tools in a controlled filesystem environment
 
-### Manual Docspec Improvement
+### Manual Docspec Audit
 
-The docspec-improve workflow allows you to manually trigger improvements to a docspec file and its associated markdown file. This is useful when you want to:
+The docspec-audit workflow allows you to manually trigger an audit and improvements to a docspec file and its associated markdown file. This is useful when you want to:
 
 - Update a docspec to better reflect the current state of the markdown
 - Discover gaps in documentation that aren't triggered by code changes
@@ -155,7 +155,7 @@ The docspec-improve workflow allows you to manually trigger improvements to a do
 
 #### Setup
 
-Add the workflow to your repository: [`.github/workflows/docspec-improve.yml`](.github/workflows/docspec-improve.yml)
+Add the workflow to your repository: [`.github/workflows/docspec-audit.yml`](.github/workflows/docspec-audit.yml)
 
 #### How It Works
 
@@ -174,7 +174,7 @@ Before the discovery phase begins, the workflow:
 
 #### Usage
 
-1. Go to Actions → "Improve markdown and docspec" in your repository
+1. Go to Actions → "Audit and improve docspec" in your repository
 2. Click "Run workflow"
 3. Enter the path to the markdown file (e.g., `README.md`)
 4. The workflow will generate/update the corresponding docspec file and create a PR with improvements

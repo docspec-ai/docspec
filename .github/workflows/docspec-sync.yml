@@ -1,4 +1,4 @@
-name: Update docs from docspec after merge
+name: Sync documentation from docspec
 
 on:
   pull_request:
@@ -29,11 +29,11 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: docspec-claude-${{ github.repository }}
+  group: docspec-sync-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
-  docspec_update:
+  docspec_sync:
     # Run on PR merge OR manual dispatch
     if: ${{ github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
@@ -73,7 +73,7 @@ jobs:
             echo "base_ref=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Run docspec updater
+      - name: Run docspec sync
         uses: ./
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}

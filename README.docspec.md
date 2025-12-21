@@ -50,11 +50,11 @@ This document should be updated when:
 - `docspec-format.md` changes (format definition, required sections, boilerplate)
 
 **Integration changes:**
-- `.github/workflows/docspec-claude.yml` changes (workflow triggers, inputs, steps)
-- `.github/workflows/docspec-improve.yml` changes (workflow triggers, inputs, steps)
+- `.github/workflows/docspec-sync.yml` changes (workflow triggers, inputs, steps)
+- `.github/workflows/docspec-audit.yml` changes (workflow triggers, inputs, steps)
 - `action.yml` changes (action inputs, outputs, default values)
-- `.github/actions/docspec-claude/scripts/*.py` changes affecting CLI interface
-- `.github/actions/docspec-improve/scripts/*.py` changes affecting CLI interface or workflow behavior
+- `.github/actions/docspec-sync/scripts/*.py` changes affecting CLI interface
+- `.github/actions/docspec-audit/scripts/*.py` changes affecting CLI interface or workflow behavior
 - `.pre-commit-config.yaml` changes
 
 **Should NOT trigger updates:**
@@ -79,7 +79,7 @@ The document must contain these sections in order:
 7. **Pre-commit Integration** - Complete YAML configuration example from `.pre-commit-config.yaml`. Explain that hook passes filenames to validate command, and validator recursively finds docspecs if no paths provided. Include installation command.
 8. **GitHub Action Integration** - Overview of both workflows, then separate subsections for each
    - **Post-Merge Documentation Updates** - Complete workflow YAML with all required inputs. Explain: three-part discovery strategy (changed files, same directory, parent directories), Claude Code CLI usage with built-in tools to explore the repository, unified diff patch generation, PR creation. Document all optional inputs with defaults. List all safety features (max files, diff truncation, unified diff validation, path validation, no new files, no non-markdown modifications, concurrency control, filesystem exploration in controlled environment). Include the file naming convention (`filename.docspec.md` → `filename.md`). Note the local reference option (`uses: ./`).
-   - **Manual Docspec Improvement** - Complete workflow YAML. Explain the two-phase approach: Discovery phase (exploration tools only, no editing), Implementation phase (editing tools with `--permission-mode acceptEdits`). Explain that it generates/overwrites the docspec first using `docspec generate`, then validates after updates. Document the workflow dispatch trigger and required input parameter.
+   - **Manual Docspec Audit** - Complete workflow YAML. Explain the two-phase approach: Discovery phase (exploration tools only, no editing), Implementation phase (editing tools with `--permission-mode acceptEdits`). Explain that it generates/overwrites the docspec first using `docspec generate`, then validates after updates. Document the workflow dispatch trigger and required input parameter.
 9. **Development** - Commands for running tests (including watch mode) and building
 10. **License** - MIT
 
@@ -132,7 +132,7 @@ The document must contain these sections in order:
 - Show validation rules and requirements (minimum 50 chars, non-boilerplate content)
 - Explain the file naming convention (`README.docspec.md` → `README.md`)
 - Include setup steps (installing docspec, configuring secrets)
-- Link to existing files (e.g., `[workflow file](.github/workflows/name.yml)`, `[format definition](docspec-format.md)`) rather than inlining their content
+- Link to existing files (e.g., `[workflow file](.github/workflows/docspec-sync.yml)`, `[format definition](docspec-format.md)`) rather than inlining their content
 
 **DON'T:**
 - Document internal implementation details (validator/generator internals, Python script implementation)
@@ -176,4 +176,4 @@ This document intentionally excludes:
 - Docspec format details → `docspec-format.md`
 - Source code implementation → `src/` directory
 - Test examples → test files in the repository
-- GitHub Actions behavior → workflow files in `.github/workflows/`
+- GitHub Actions behavior → workflow files in `.github/workflows/` (docspec-sync.yml and docspec-audit.yml)

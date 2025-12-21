@@ -1,5 +1,5 @@
-name: 'Docspec Claude Updater'
-description: 'Automatically update markdown files based on *.docspec.md files after PR merges using Claude API'
+name: 'Docspec Sync Action'
+description: 'Automatically sync markdown files based on *.docspec.md files after PR merges using Claude API'
 
 inputs:
   anthropic_api_key:
@@ -63,7 +63,7 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
-        pip install -r ${{ github.action_path }}/.github/actions/docspec-claude/requirements.txt
+        pip install -r ${{ github.action_path }}/.github/actions/docspec-sync/requirements.txt
 
     - name: Run docspec updater
       shell: bash
@@ -78,7 +78,7 @@ runs:
         MAX_DIFF_CHARS: ${{ inputs.max_diff_chars }}
         ANTHROPIC_MODEL: ${{ inputs.anthropic_model }}
       run: |
-        python ${{ github.action_path }}/.github/actions/docspec-claude/scripts/docspec_update.py
+        python ${{ github.action_path }}/.github/actions/docspec-sync/scripts/docspec_update.py
 
     - name: Configure git
       shell: bash
