@@ -2,6 +2,8 @@ import { parseFormatFile, getFormatFilePath, ParsedFormat } from "./format-parse
 import { logger } from "./logger";
 
 let cachedFormat: ParsedFormat | null = null;
+let cachedRequiredSections: readonly string[] | null = null;
+let cachedSectionBoilerplate: Record<string, string> | null = null;
 
 /**
  * Load and cache the format definition
@@ -29,24 +31,111 @@ function loadFormat(): ParsedFormat {
 }
 
 /**
- * Required section headers for docspec files
+ * Get required sections (lazy-loaded)
  */
-export const REQUIRED_SECTIONS = (() => {
-  const format = loadFormat();
-  return format.sections.map(s => s.name) as readonly string[];
-})();
+function getRequiredSections(): readonly string[] {
+  if (cachedRequiredSections === null) {
+    const format = loadFormat();
+    cachedRequiredSections = format.sections.map(s => s.name) as readonly string[];
+  }
+  return cachedRequiredSections;
+}
+
+/**
+ * Get section boilerplate (lazy-loaded)
+ */
+function getSectionBoilerplate(): Record<string, string> {
+  if (cachedSectionBoilerplate === null) {
+    const format = loadFormat();
+    cachedSectionBoilerplate = {};
+    for (const section of format.sections) {
+      cachedSectionBoilerplate[section.name] = section.boilerplate;
+    }
+  }
+  return cachedSectionBoilerplate;
+}
+
+/**
+ * Required section headers for docspec files
+ * Lazily loaded on first access to ensure logger is configured
+ */
+export const REQUIRED_SECTIONS = new Proxy([] as readonly string[], {
+  get(target, prop) {
+    const sections = getRequiredSections();
+    if (typeof prop === 'string') {
+      const index = parseInt(prop, 10);
+      if (!isNaN(index)) {
+        return sections[index];
+      }
+      if (prop === 'length') {
+        return sections.length;
+      }
+      if (prop === 'forEach' || prop === 'map' || prop === 'filter' || prop === 'includes' || prop === 'indexOf' || prop === 'slice' || prop === 'join') {
+        return (sections as any)[prop].bind(sections);
+      }
+    }
+    return (sections as any)[prop];
+  },
+  ownKeys() {
+    return Object.keys(getRequiredSections());
+  },
+  getOwnPropertyDescriptor(target, prop) {
+    const sections = getRequiredSections();
+    if (typeof prop === 'string') {
+      const index = parseInt(prop, 10);
+      if (!isNaN(index) && index >= 0 && index < sections.length) {
+        return { enumerable: true, configurable: true, value: sections[index] };
+      }
+      if (prop === 'length') {
+        return { enumerable: false, configurable: false, value: sections.length };
+      }
+    }
+    return undefined;
+  },
+  has(target, prop) {
+    const sections = getRequiredSections();
+    if (typeof prop === 'string') {
+      const index = parseInt(prop, 10);
+      if (!isNaN(index) && index >= 0 && index < sections.length) {
+        return true;
+      }
+      if (prop === 'length') {
+        return true;
+      }
+    }
+    return prop in sections;
+  }
+}) as readonly string[];
 
 /**
  * Boilerplate template text for each section
+ * Lazily loaded on first access to ensure logger is configured
  */
-export const SECTION_BOILERPLATE: Record<string, string> = (() => {
-  const format = loadFormat();
-  const boilerplate: Record<string, string> = {};
-  for (const section of format.sections) {
-    boilerplate[section.name] = section.boilerplate;
+export const SECTION_BOILERPLATE: Record<string, string> = new Proxy({} as Record<string, string>, {
+  get(target, prop) {
+    const boilerplate = getSectionBoilerplate();
+    return boilerplate[prop as string];
+  },
+  set(target, prop, value) {
+    const boilerplate = getSectionBoilerplate();
+    boilerplate[prop as string] = value;
+    return true;
+  },
+  ownKeys() {
+    return Object.keys(getSectionBoilerplate());
+  },
+  getOwnPropertyDescriptor(target, prop) {
+    const boilerplate = getSectionBoilerplate();
+    if (prop in boilerplate) {
+      return { enumerable: true, configurable: true, value: boilerplate[prop as string] };
+    }
+    return undefined;
+  },
+  has(target, prop) {
+    const boilerplate = getSectionBoilerplate();
+    return prop in boilerplate;
   }
-  return boilerplate;
-})();
+});
 
 /**
  * Generate the full docspec template
