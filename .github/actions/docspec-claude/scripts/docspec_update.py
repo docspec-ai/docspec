@@ -130,9 +130,10 @@ def extract_unified_diff(output: str) -> str:
     
     # Extract from diff_start to end, but remove trailing non-diff content
     diff_lines = lines[diff_start:]
-    # Remove any trailing text that doesn't look like diff
+    # Find the last diff line to exclude trailing non-diff content
+    diff_end = len(diff_lines)
     for i in range(len(diff_lines) - 1, -1, -1):
-        if diff_lines[i].strip() and not (
+        if diff_lines[i].strip() and (
             diff_lines[i].startswith(("diff ", "--- ", "+++ ", "@@", " ", "+", "-", "\\"))
         ):
             diff_end = i + 1
