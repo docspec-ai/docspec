@@ -122,7 +122,7 @@ def extract_unified_diff(output: str) -> str:
         # Look for lines that look like diff hunks
         for i, line in enumerate(lines):
             if line.startswith("@@"):
-                diff_start = i - 1  # Include the --- line before
+                diff_start = max(0, i - 1)  # Include the --- line before, but guard against negative index
                 break
     
     if diff_start is None:
