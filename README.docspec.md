@@ -1,179 +1,117 @@
-# DOCSPEC: [README.md](/README.md)
+---
 
-> One line: what this document is for.
+# DOCSPEC: Readme
 
-## AGENT INSTRUCTIONS
+> Short phrase: *What this doc is for* (e.g. "Overview of this directory's purpose and structure.")
 
-**Target document:** `README.md`
+---
 
-**Your task:**
+## 1. Purpose of This Document
 
-* Compare the target document against this docspec.  
-* Update the target document to satisfy this docspec.  
-* Make the smallest changes necessary.  
-* Preserve existing content that already complies.  
-* Do not invent content, sections, or facts not implied by this docspec or the repository.
+This is the **main README for the docspec npm package**. It serves as both user-facing documentation and package documentation for the npm registry.
 
-
-
-## 1. Document Purpose
-
-This document is a project overview and getting started guide for developers and users of the docspec toolchain. It serves as the primary entry point for understanding the docspec project.
-
-It must reliably answer:
-- What is docspec and what problem does it solve?
-- What is the docspec format and what are its required sections?
-- How do I install docspec (locally or globally)?
-- How do I use the CLI (validate and generate commands)?
-- How do I use docspec as a library in TypeScript?
+This document must answer:
+- How do I install docspec?
+- What commands are available and how do I use them?
+- How do I use docspec as a library in TypeScript/JavaScript?
 - How do I integrate docspec with pre-commit hooks?
-- How do I set up GitHub Actions workflows for automated documentation updates?
-- How do the two GitHub Actions workflows differ (post-merge updates vs. manual improvement)?
-- What are the safety features and guardrails?
-- How do I develop/test the project?
+- How do I set up the GitHub Actions workflows for automated documentation updates?
+- How do I contribute to development?
 
-This is a user-facing README that combines installation instructions, usage examples, integration guides, and development setup. It documents both CLI and programmatic library usage, as well as two distinct GitHub Actions workflows for different use cases.
+Document type: This is a **multi-purpose document** combining installation guide, CLI reference, API reference, integration guide, and GitHub Actions documentation.
 
-## 2. Update Triggers
+---
+
+## 2. When This Document Should Be Updated
 
 This document should be updated when:
 
-**Package and CLI changes:**
-- `package.json` changes (name, version, description, bin entry, files array)
-- `src/cli.ts` changes (command names, arguments, options, descriptions, help text)
-- `src/index.ts` changes (exported functions, types, constants)
+- CLI commands change in `src/cli.ts` (new commands, modified options, changed behavior)
+- Exported API functions or types change in `src/index.ts` (new exports, signature changes, removed exports)
+- Validation rules change in `src/validator.ts` or `src/constants.ts` (new requirements, modified checks)
+- The docspec format definition changes in `docspec-format.md` (new sections, modified template)
+- GitHub Actions workflows change in `action.yml`, `.github/workflows/docspec-sync.yml`, or `.github/workflows/docspec-audit.yml` (new inputs, changed triggers, modified behavior)
+- Python scripts change in `.github/actions/docspec-sync/scripts/` or `.github/actions/docspec-audit/scripts/` (workflow behavior changes)
+- Package metadata changes in `package.json` (version, scripts, bin commands, dependencies)
+- Pre-commit hook configuration changes in `.pre-commit-config.yaml`
 
-**Core behavior changes:**
-- `src/validator.ts` changes (validation rules, required sections, error messages, minimum content length)
-- `src/generator.ts` changes (template structure, file naming conventions)
-- `src/constants.ts` changes that affect the template or boilerplate text
-- `docspec-format.md` changes (format definition, required sections, boilerplate)
+---
 
-**Integration changes:**
-- `.github/workflows/docspec-sync.yml` changes (workflow triggers, inputs, steps)
-- `.github/workflows/docspec-audit.yml` changes (workflow triggers, inputs, steps)
-- `action.yml` changes (action inputs, outputs, default values)
-- `.github/actions/docspec-sync/scripts/*.py` changes affecting CLI interface
-- `.github/actions/docspec-audit/scripts/*.py` changes affecting CLI interface or workflow behavior
-- `.pre-commit-config.yaml` changes
+## 3. Structure & Required Sections
 
-**Should NOT trigger updates:**
-- Test file changes (`*.test.ts`, `*.spec.ts`)
-- Internal implementation details that don't affect public API
-- Dependency version updates that don't change functionality
-- TypeScript configuration (`tsconfig.json`)
-- Build process internals
-- GitHub Actions runner infrastructure details
-- Python script internal implementation (only interface changes matter)
+**Required sections and their purpose:**
 
-## 3. Expected Structure
+1. **Installation** - How to install docspec via npm (both local and global installation)
 
-The document must contain these sections in order:
+2. **Usage** - How to use the docspec CLI
+   - **CLI Commands** subsection - Document each command (`validate`, `generate`) with examples, arguments, and behavior details including directory skipping and error handling
 
-1. **Project header and description** - Project name, one-line description of what docspec is
-2. **The Docspec Format** - Brief overview of what docspec format is, link to `docspec-format.md`, list of 5 required sections with their purposes. Must note that each section must be customized and validation ensures non-boilerplate content.
-3. **Installation** - npm install commands (local and global). Show both options clearly.
-4. **Usage** - Introduction to usage, covering both CLI and library approaches
-5. **CLI Commands** - Subsections for `validate` and `generate` commands with concrete bash examples. Show both file-specific and recursive validation. Explain that validate finds all `*.docspec.md` files when no paths provided, skipping `node_modules`, `.git`, and `dist`.
-6. **Library Usage** - TypeScript examples showing `validateDocspec` and `generateDocspec` imports and usage from `src/index.ts`. Include error handling example.
-7. **Pre-commit Integration** - Complete YAML configuration example from `.pre-commit-config.yaml`. Explain that hook passes filenames to validate command, and validator recursively finds docspecs if no paths provided. Include installation command.
-8. **GitHub Action Integration** - Overview of both workflows, then separate subsections for each
-   - **Post-Merge Documentation Updates** - Complete workflow YAML with all required inputs. Explain: three-part discovery strategy (changed files, same directory, parent directories), Claude Code CLI usage with built-in tools to explore the repository, unified diff patch generation, PR creation. Document all optional inputs with defaults. List all safety features (max files, diff truncation, unified diff validation, path validation, no new files, no non-markdown modifications, concurrency control, filesystem exploration in controlled environment). Include the file naming convention (`filename.docspec.md` → `filename.md`). Note the local reference option (`uses: ./`).
-   - **Manual Docspec Audit** - Complete workflow YAML. Explain the two-phase approach: Discovery phase (exploration tools only, no editing), Implementation phase (editing tools with `--permission-mode acceptEdits`). Explain that it generates/overwrites the docspec first using `docspec generate`, then validates after updates. Document the workflow dispatch trigger and required input parameter.
-9. **Development** - Commands for running tests (including watch mode) and building
-10. **License** - MIT
+3. **Library Usage** - How to use docspec as a TypeScript/JavaScript library with code examples that match the actual exported API (must include `generateDocspecContent()` and exported types/constants)
+
+4. **Pre-commit Integration** - How to integrate with pre-commit framework, referencing `.pre-commit-config.yaml`
+
+5. **GitHub Action Integration** - Comprehensive documentation for both GitHub Actions workflows
+   - **Post-Merge Documentation Updates** subsection - Document the `.github/workflows/docspec-sync.yml` workflow with setup instructions, detailed "How It Works" explanation including discovery strategy (sibling docspecs, ancestor docspecs), configuration options, and safety features
+   - **Manual Docspec Audit** subsection - Document the `.github/workflows/docspec-audit.yml` workflow with setup instructions, the two-phase approach (discovery and implementation), pre-discovery generation step, post-implementation validation, and usage instructions
+
+6. **Development** - How to contribute, run tests, and build the project (including test framework details, TypeScript compilation, and `prepublishOnly` script)
+
+7. **License** - Package license information
 
 **Constraints:**
-- Code examples must match actual source files (especially `src/cli.ts` and `src/index.ts`)
-- GitHub Actions sections must include complete workflow YAML, not abbreviated snippets
-- Document all input parameters and their defaults explicitly
-- Explain discovery strategies and safety features in detail
-- Clarify that actions use Claude Code CLI, not the Anthropic API directly
-- Show the actual permission modes and tool configurations
-- Maintain clear separation between the two workflows and their use cases
+- Code examples must be executable and match the actual API (no theoretical features)
+- Workflow names must match actual workflow file names exactly
+- File paths must be accurate (e.g., `.github/workflows/docspec-sync.yml`)
+- GitHub Actions documentation must be comprehensive with both setup instructions AND detailed "How It Works" explanations
 
-**Linking vs Inlining:**
-- When referencing existing files (workflows, configuration files, other documentation), use markdown links to the files rather than inlining their content
-- For example, link to `.github/workflows/*.yml` files, `action.yml`, `docspec-format.md`, and Python scripts rather than copying their content into the document
-- This keeps the document maintainable and avoids duplication
-- Only inline content when it's essential for understanding (e.g., a small code snippet example)
+---
 
-## 4. Editing Guidelines
+## 4. Style & Editing Guidelines
 
-**Source of truth:**
-- Use concrete examples from actual codebase files
-- Keep code examples synchronized with `src/cli.ts` and `src/index.ts`
-- Reference actual file paths and naming conventions from the codebase
-- Link to source files where appropriate (use relative paths)
+**Code formatting:**
+- Use fenced code blocks with language tags (```bash for shell commands, ```typescript for TypeScript examples)
+- Code examples must be tested against actual implementation - no invented APIs
 
-**Action documentation:**
-- Include complete YAML workflow snippets, not conceptual descriptions
-- Document all input parameters with their exact default values from `action.yml`
-- Explain the three-part discovery strategy for finding relevant docspecs (changed files, same directory, parent directories)
-- Clarify that workflows use Claude Code CLI (installed via npm), not the Anthropic API directly
-- Show actual permission modes (`--permission-mode acceptEdits`) but do not mention specific tool names
-- Document both discovery and implementation phases for the improve workflow (refer to "exploration tools" and "editing tools" generically)
-- List all safety features explicitly (max files, diff validation, path validation, no new files, etc.)
+**Structure:**
+- Preserve hierarchical section structure (## for major sections, ### for subsections, #### for sub-subsections)
+- Keep sections in order as defined in section 3
 
-**Code examples:**
-- Show both CLI and library usage clearly
-- Include error handling in library examples
-- Use actual command names, flags, and options from `src/cli.ts`
-- Show complete examples, not fragments
+**File references:**
+- Always include actual file paths when referencing files (e.g., `.github/workflows/docspec-sync.yml`, `src/cli.ts:92`)
+- Use relative links to files in the repository
 
-**Level of detail:**
-- Provide enough detail for users to successfully integrate docspec
-- Explain behavior that isn't obvious (e.g., recursive file finding, directory skipping)
-- Document defaults and optional parameters
-- Explain the difference between the two workflows clearly
+**GitHub Actions documentation:**
+- Include both setup instructions (what files to add, what secrets to configure) AND detailed "How It Works" sections explaining the workflow behavior
+- Update Configuration Options sections when `action.yml` inputs change
+- Document actual workflow names from the YAML files, not idealized names
 
-**DO:**
-- Maintain clear separation between CLI usage and library usage
-- Show validation rules and requirements (minimum 50 chars, non-boilerplate content)
-- Explain the file naming convention (`README.docspec.md` → `README.md`)
-- Include setup steps (installing docspec, configuring secrets)
-- Link to existing files (e.g., `[workflow file](.github/workflows/docspec-sync.yml)`, `[format definition](docspec-format.md)`) rather than inlining their content
+**Accuracy requirements:**
+- Workflow names must match the `name:` field in workflow YAML files exactly
+- When documenting the discovery phase, explain "sibling docspecs" and "ancestor docspecs" clearly
+- Update examples when API signatures change
 
-**DON'T:**
-- Document internal implementation details (validator/generator internals, Python script implementation)
-- Include TypeScript type definitions unless needed for clarity
-- Duplicate content from `docspec-format.md` (link to it instead)
-- Explain how the validator or generator work internally
-- Document GitHub Actions runner infrastructure
-- Mention specific Claude tools by name (e.g., Read, Glob, Grep, Bash, Edit). Instead, refer to "available tools" or "built-in tools" generically
+**What NOT to do:**
+- Don't add emojis unless explicitly requested
+- Don't document theoretical features that don't exist in the code
+- Don't remove section structure or placeholders that define the document organization
 
-## 5. Intentional Omissions
+---
 
-This document intentionally excludes:
+## 5. Known Gaps or Intentional Omissions
 
-**Internal implementation details:**
-- Validator implementation (`src/validator.ts` internals - section parsing, content validation logic)
-- Generator implementation (`src/generator.ts` internals - template rendering)
-- Constants and boilerplate management (`src/constants.ts` internal workings)
-- Format parser implementation
-- TypeScript type definitions (unless needed for API clarity)
+**Intentionally omitted implementation details:**
+- Internal validator logic (`src/validator.ts` implementation) - only document user-facing behavior
+- Internal generator logic (`src/generator.ts` implementation) - only document the public API
+- Format parser internals - only document the format specification itself
+- Python script implementation details (`.github/actions/*/scripts/*.py`) - only document high-level workflow behavior and what users need to know
+- Claude Code CLI internals - only document that it's used and what capabilities it provides
+- Test implementation details - only document that tests exist and how to run them
+- TypeScript compilation configuration details - only document the build command
 
-**Development infrastructure:**
-- Test infrastructure details (Jest configuration, test file structure)
-- TypeScript configuration (`tsconfig.json`)
-- Build process internals (beyond the `npm run build` command)
-- Package publishing details
+**Information deliberately kept elsewhere:**
+- Docspec format specification lives in `docspec-format.md` - README only provides overview
+- Detailed template structure (placeholders like `{{TARGET_FILE}}`, `{{AGENT_INSTRUCTIONS}}`, `{{SECTIONS}}`) is documented in `docspec-format.md`, not the README
 
-**GitHub Actions internals:**
-- Python script implementation details (only the interface/behavior is documented)
-- GitHub Actions runner infrastructure
-- Pre-commit hook internals (beyond configuration)
-- Claude Code CLI internal workings
-
-**Other:**
-- Contributing guidelines (would belong in a separate `CONTRIBUTING.md`)
-- Changelog (would belong in `CHANGELOG.md`)
-- Detailed format specification (documented in `docspec-format.md` instead)
-- Issue templates, PR templates
-- Security policy
-
-**Where to find omitted information:**
-- Docspec format details → `docspec-format.md`
-- Source code implementation → `src/` directory
-- Test examples → test files in the repository
-- GitHub Actions behavior → workflow files in `.github/workflows/` (docspec-sync.yml and docspec-audit.yml)
+**Not yet documented:**
+- Package version number (0.1.0) - this can be omitted as it's available in package.json and npm registry
+- Python requirements files - these are implementation details of the GitHub Actions
