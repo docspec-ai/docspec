@@ -13,7 +13,10 @@ The format includes 5 required sections:
 4. **Editing Guidelines** - How edits to this document should be made
 5. **Intentional Omissions** - What this document deliberately does not cover
 
-Each section must be customized. The validator ensures each section contains non-boilerplate content.
+Each section must be customized. The validator ensures each section contains non-boilerplate content by checking that:
+- Each section differs from the template boilerplate text
+- Content is not just whitespace differences from boilerplate
+- Each section has at least 50 characters of meaningful content
 
 ## Installation
 
@@ -45,13 +48,15 @@ Or validate all `*.docspec.md` files in the current directory tree:
 docspec validate
 ```
 
+The validator will recursively find all docspec files, skipping `node_modules`, `.git`, and `dist` directories.
+
 #### Generate a new docspec file
 
 ```bash
 docspec generate path/to/README.docspec.md
 ```
 
-This will generate a docspec file that references the target markdown file (e.g., `README.docspec.md` references `README.md`).
+This will generate a docspec file that references the target markdown file using the naming convention: `filename.docspec.md` targets `filename.md` (e.g., `README.docspec.md` references `README.md`, `docs/guide.docspec.md` references `docs/guide.md`).
 
 ### Library Usage
 
@@ -70,19 +75,7 @@ await generateDocspec("path/to/README.docspec.md");
 
 ## Pre-commit Integration
 
-To use docspec with [pre-commit](https://pre-commit.com/), add the following to your `.pre-commit-config.yaml`:
-
-```yaml
-repos:
-  - repo: local
-    hooks:
-      - id: docspec-validate
-        name: Validate docspec files
-        entry: docspec validate
-        language: system
-        files: \.docspec\.md$
-        pass_filenames: true
-```
+To use docspec with [pre-commit](https://pre-commit.com/), see [`.pre-commit-config.yaml.example`](.pre-commit-config.yaml.example) for the configuration. The hook uses `docspec validate` as the entry point, targets `\.docspec\.md$` files, and passes filenames to the validate command.
 
 Then install the pre-commit hooks:
 
@@ -90,106 +83,103 @@ Then install the pre-commit hooks:
 pre-commit install
 ```
 
-The hook will automatically validate any modified `*.docspec.md` files on commit.
+The hook will automatically validate any modified `*.docspec.md` files on commit. The hook passes filenames to the validate command, which will validate only those specific files. If no filenames are passed, the validator recursively finds all `*.docspec.md` files in the directory tree.
 
 ## GitHub Action Integration
 
-Docspec includes a GitHub Action that automatically updates markdown files based on `*.docspec.md` files after PR merges, using Claude Code CLI to explore the repository and generate patches.
+Docspec includes two GitHub Actions for different use cases:
 
-### Setup
+1. **Post-merge documentation updates** (`.github/workflows/docspec-claude.yml`) - Automatically updates markdown files after PR merges
+2. **Manual docspec improvement** (`.github/workflows/docspec-improve.yml`) - Manually triggered workflow to improve docspec files
 
-1. **Add the workflow** to your repository (`.github/workflows/docspec-claude.yml`):
+### Post-Merge Documentation Updates
 
-```yaml
-name: Update docs from docspec after merge
+This action automatically updates markdown files based on `*.docspec.md` files after PR merges. It uses Claude Code CLI (not the Anthropic API directly) to explore the repository and generate unified diff patches for documentation updates.
 
-on:
-  pull_request:
-    types: [closed]
+#### Setup
 
-permissions:
-  contents: write
-  pull-requests: write
+1. **Add the workflow** to your repository: [`.github/workflows/docspec-claude.yml`](.github/workflows/docspec-claude.yml)
 
-concurrency:
-  group: docspec-claude-${{ github.repository }}
-  cancel-in-progress: false
-
-jobs:
-  docspec_update:
-    if: ${{ github.event.pull_request.merged == true }}
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Run docspec updater
-        uses: docspec-ai/docspec@main
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          pr_number: ${{ github.event.pull_request.number }}
-          base_sha: ${{ github.event.pull_request.base.sha }}
-          merge_sha: ${{ github.event.pull_request.merge_commit_sha }}
-          repo: ${{ github.repository }}
-          base_ref: ${{ github.event.pull_request.base.ref }}
-```
-
-2. **Configure secrets**: 
+2. **Configure secrets**:
    - Add `ANTHROPIC_API_KEY` to your repository secrets (Settings → Secrets and variables → Actions)
+   - `GITHUB_TOKEN` is automatically provided by GitHub Actions
 
-3. **File naming convention**: The action uses Option B convention:
-   - `README.docspec.md` → targets `README.md`
-   - `docs/guide.docspec.md` → targets `docs/guide.md`
-
-### How It Works
+#### How It Works
 
 1. When a PR is merged, the workflow triggers
-2. The action discovers relevant `*.docspec.md` files using directory-based discovery:
-   - Files that changed directly in the PR
-   - Files in the same directory as any changed file
-   - Files in parent directories (walking up to repo root) of any changed file
-3. For each docspec, Claude Code CLI explores the repository using built-in tools (Read, Glob, Grep, Bash, etc.) to understand the codebase context
-4. Claude generates a unified diff patch to update the target markdown based on the code changes and docspec requirements
-5. Patches are applied and a new PR is opened with the documentation updates
+2. The action discovers relevant `*.docspec.md` files using a three-part discovery strategy:
+   - Files that changed directly in the PR (docspec files modified in the merge)
+   - Files in the same directory as any changed file (sibling docspecs)
+   - Files in parent directories, walking up to the repository root (ancestor docspecs)
+3. For each discovered docspec, Claude Code CLI is invoked with built-in tools (Read, Glob, Grep, Bash) to explore the repository and understand the codebase context
+4. Claude generates a unified diff patch to update the target markdown file based on the code changes and docspec requirements
+5. Unified diff patches are validated and applied to update the markdown files
+6. A new PR is opened with the documentation updates
 
-### Configuration Options
+**File naming convention**: The action uses the pattern `filename.docspec.md` → `filename.md`:
+- `README.docspec.md` → targets `README.md`
+- `docs/guide.docspec.md` → targets `docs/guide.md`
+
+#### Configuration Options
 
 The action supports optional inputs:
 
 - `max_docspecs` (default: `10`) - Maximum number of docspec files to process per merge
 - `max_diff_chars` (default: `120000`) - Maximum characters in PR diff before truncation
-- `anthropic_model` (default: `claude-sonnet-4-5`) - Anthropic model to use
+- `anthropic_model` (default: `claude-sonnet-4-5`) - Anthropic model to use (short alias for the Claude Sonnet 4.5 model)
 
-Example with custom configuration:
+See [`.github/workflows/docspec-claude.yml`](.github/workflows/docspec-claude.yml) for the complete workflow file and [`action.yml`](action.yml) for all available configuration options.
 
-```yaml
-- name: Run docspec updater
-  uses: ./.github/actions/docspec-claude
-  with:
-    anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-    github_token: ${{ secrets.GITHUB_TOKEN }}
-    pr_number: ${{ github.event.pull_request.number }}
-    base_sha: ${{ github.event.pull_request.base.sha }}
-    merge_sha: ${{ github.event.pull_request.merge_commit_sha }}
-    repo: ${{ github.repository }}
-    base_ref: ${{ github.event.pull_request.base.ref }}
-    max_docspecs: '5'
-    max_diff_chars: '60000'
-    anthropic_model: 'claude-3-opus-20240229'
-```
+**Note**: For this repository's own workflow files, you can use the local reference `uses: ./` (at the action level in the step) instead of the published action reference. This applies to both the post-merge workflow and the manual improvement workflow.
 
-**Note**: For this repository's own workflow, you can use the local reference `./` instead of the published action.
+#### Safety Features
 
-### Safety Features
+The action includes multiple guardrails to ensure safe operation:
 
-The action includes several guardrails:
-
-- **Max files limit**: Prevents processing too many files in a single run
-- **Diff truncation**: Large PR diffs are truncated to stay within token limits
-- **Unified diff validation**: Only accepts properly formatted patches
+- **Max files limit**: Prevents processing too many files in a single run (default: 10)
+- **Diff truncation**: Large PR diffs are truncated to stay within token limits (default: 120,000 characters)
+- **Unified diff validation**: Only accepts properly formatted patches that start with `diff --git` or `--- ` markers
 - **Path validation**: Patches must reference the expected file path
-- **No new files**: Patches cannot create new files or modify non-markdown files
-- **Concurrency control**: Prevents multiple runs from conflicting
-- **Filesystem exploration**: Claude Code CLI provides built-in tools (Read, Glob, Grep, Bash) that run in a controlled environment
+- **No new files**: Patches cannot create new files
+- **No non-markdown modifications**: Only markdown files can be modified
+- **Concurrency control**: Prevents multiple workflow runs from conflicting
+- **Controlled environment**: Claude Code CLI runs with built-in tools (Read, Glob, Grep, Bash) in a controlled filesystem environment
+
+### Manual Docspec Improvement
+
+The docspec-improve workflow allows you to manually trigger improvements to a docspec file and its associated markdown file. This is useful when you want to:
+
+- Update a docspec to better reflect the current state of the markdown
+- Discover gaps in documentation that aren't triggered by code changes
+- Regenerate a docspec from scratch
+
+#### Setup
+
+Add the workflow to your repository: [`.github/workflows/docspec-improve.yml`](.github/workflows/docspec-improve.yml)
+
+#### How It Works
+
+The workflow uses a two-phase approach with Claude Code CLI:
+
+1. **Discovery Phase**: Claude explores the repository using Read, Glob, and Grep tools (no Edit tool) and creates a detailed information discovery plan identifying:
+   - Missing information in the docspec (what should be documented but isn't)
+   - Irrelevant or incorrect information in the docspec (what doesn't match reality)
+   - Missing information in the markdown file (gaps in documentation)
+
+2. **Implementation Phase**: Claude uses the Edit, Read, Glob, and Grep tools with `--permission-mode acceptEdits` to update both files based on the discovery plan. It preserves the exact structure of the docspec file (headers, separators, frontmatter, AGENT INSTRUCTIONS section) while only updating the content within sections 1-5.
+
+Before the discovery phase begins, the workflow:
+- Generates or overwrites the docspec file using `docspec generate`
+- Validates the updated docspec file using `docspec validate` after changes are made
+
+#### Usage
+
+1. Go to Actions → "Improve markdown and docspec" in your repository
+2. Click "Run workflow"
+3. Enter the path to the markdown file (e.g., `README.md`)
+4. The workflow will generate/update the corresponding docspec file and create a PR with improvements
+
+**Note**: This workflow requires the `ANTHROPIC_API_KEY` secret to be configured.
 
 ## Development
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Docspec improvement script for GitHub Actions.
+Docspec information discovery script for GitHub Actions.
 
 Takes a markdown file, generates/overwrites its docspec,
-uses Claude to plan improvements, and implements them.
+uses Claude to discover missing or irrelevant information,
+and updates only the content of sections 1-5 (preserving structure).
 """
 
 import os
@@ -28,7 +29,7 @@ def write_text(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def extract_unified_diffs(output: str, md_path: str, docspec_path: str) -> tuple[str, str]:
+def _extract_unified_diffs_unused(output: str, md_path: str, docspec_path: str) -> tuple[str, str]:
     """Extract two unified diffs from Claude output, matching them to files."""
     lines = output.splitlines()
     diffs: list[tuple[str, str]] = []  # (diff_content, file_path)
@@ -107,11 +108,19 @@ def extract_unified_diffs(output: str, md_path: str, docspec_path: str) -> tuple
             docspec_diff = diff_content
     
     if md_diff is None or docspec_diff is None:
-        raise RuntimeError(
-            f"Could not identify both diffs. Found {len(diffs)} diff(s). "
-            f"Markdown diff: {'found' if md_diff else 'missing'}, "
-            f"Docspec diff: {'found' if docspec_diff else 'missing'}"
-        )
+        # Try to find diffs by order if file matching failed
+        if len(diffs) == 2:
+            # Assume first is markdown, second is docspec
+            md_diff = diffs[0][0] if md_diff is None else md_diff
+            docspec_diff = diffs[1][0] if docspec_diff is None else docspec_diff
+            print(f"Warning: Could not match diffs to files by path, using order assumption")
+        else:
+            raise RuntimeError(
+                f"Could not identify both diffs. Found {len(diffs)} diff(s). "
+                f"Markdown diff: {'found' if md_diff else 'missing'}, "
+                f"Docspec diff: {'found' if docspec_diff else 'missing'}. "
+                f"Output preview: {output[:500]}"
+            )
     
     return md_diff, docspec_diff
 
@@ -119,8 +128,8 @@ def extract_unified_diffs(output: str, md_path: str, docspec_path: str) -> tuple
 def call_claude_cli_for_plan(
     md_path: str, md_text: str, docspec_path: str, docspec_text: str, repo_root: Path
 ) -> str:
-    """Call Claude CLI in plan mode to generate improvement plan."""
-    prompt = f"""Analyze the following markdown file and its docspec:
+    """Call Claude CLI to generate an information discovery plan."""
+    prompt = f"""You are analyzing a markdown file and its docspec to discover missing or irrelevant information. Do not ask questions - create the plan directly.
 
 <markdown path="{md_path}">
 {md_text}
@@ -130,15 +139,30 @@ def call_claude_cli_for_plan(
 {docspec_text}
 </docspec>
 
-Task:
-1. Review the markdown file for quality improvements (clarity, structure, completeness, best practices)
-2. Review the docspec to ensure it accurately describes the markdown and follows docspec format requirements
-3. Identify specific improvements needed for both files
-4. Create a detailed plan for:
-   - How to improve the markdown file
-   - How to update the docspec to maintain the improved markdown
+Task: Focus on INFORMATION DISCOVERY. Use your available tools (Read, Glob, Grep, Bash) to explore the repository and understand what actually exists, then analyze both files and create a plan that identifies:
 
-Output your plan in a clear, structured format."""
+1. **Missing information in the docspec**: What important details about the markdown file are not captured in sections 1-5?
+   - What does the markdown actually contain that isn't mentioned in the docspec?
+   - What should trigger updates that isn't currently listed?
+   - What structure/guidelines are missing?
+
+2. **Irrelevant or incorrect information in the docspec**: What's in the docspec that doesn't match reality?
+   - Does the docspec describe things that aren't actually in the markdown?
+   - Are there update triggers that don't make sense?
+   - Are there structure requirements that don't match the actual document?
+
+3. **Missing information in the markdown**: What should be documented but isn't?
+   - Are there important details missing?
+   - Are there sections that should exist but don't?
+
+IMPORTANT: The docspec structure must be preserved:
+- Keep the header format: `# DOCSPEC: [filename]`
+- Keep the one-line description
+- Keep the `## AGENT INSTRUCTIONS` section exactly as-is
+- Keep section headers: `## 1. Document Purpose`, `## 2. Update Triggers`, etc.
+- ONLY update the CONTENT within sections 1-5, not the headers or structure
+
+Output your plan in a clear, structured format focusing on information gaps and corrections."""
     
     env = os.environ.copy()
     if "ANTHROPIC_API_KEY" in os.environ:
@@ -169,8 +193,13 @@ Output your plan in a clear, structured format."""
             "ANTHROPIC_API_KEY environment variable is not set or is empty"
         )
     
-    cmd = ["claude", "-p", prompt, "--model", model, "--permission-mode", "plan"]
-    print(f"Running Claude CLI in plan mode with model: {model}")
+    # Use regular mode with exploration tools for information discovery
+    cmd = [
+        "claude", "-p", prompt, 
+        "--model", model,
+        "--tools", "Read,Glob,Grep"
+    ]
+    print(f"Running Claude CLI for information discovery with model: {model}")
     print(f"Prompt length: {len(prompt)} characters")
     
     try:
@@ -208,33 +237,47 @@ Output your plan in a clear, structured format."""
 
 def call_claude_cli_for_implementation(
     plan: str, md_path: str, md_text: str, docspec_path: str, docspec_text: str, repo_root: Path
-) -> tuple[str, str]:
-    """Call Claude CLI to implement the plan and generate unified diffs."""
-    prompt = f"""Based on this improvement plan:
+) -> None:
+    """Call Claude CLI to implement the plan by directly editing both files."""
+    prompt = f"""Based on this information discovery plan:
 <plan>
 {plan}
 </plan>
 
-Current markdown:
-<markdown path="{md_path}">
-{md_text}
-</markdown>
+You need to update two files:
+1. {md_path} - the markdown file
+2. {docspec_path} - the docspec file
 
-Current docspec:
-<docspec path="{docspec_path}">
-{docspec_text}
-</docspec>
+CRITICAL CONSTRAINTS FOR DOCSPEC FILE - YOU MUST PRESERVE THE EXACT STRUCTURE:
+
+1. Read the existing {docspec_path} file FIRST using the Read tool
+2. PRESERVE EXACTLY:
+   - Any frontmatter (--- at the top) if it exists
+   - The exact header format (e.g., `# DOCSPEC: Readme` or `# DOCSPEC: [README.md](/README.md)`) - keep it EXACTLY as written
+   - The exact one-line description format (e.g., `> Short phrase: *...*` or `> One line: ...`) - keep it EXACTLY as written
+   - Any separator lines (---) between sections - keep them EXACTLY as they are
+   - The `## AGENT INSTRUCTIONS` section if it exists - keep it EXACTLY as-is, do not modify
+   - The EXACT section header names and numbers (e.g., `## 1. Purpose of This Document` or `## 1. Document Purpose`) - keep them EXACTLY as written
+   - The order of sections - do not reorder them
+
+3. ONLY update the CONTENT within sections 1-5 (the text below each section header)
+   - Do NOT change section header text, numbers, or names
+   - Do NOT change the format of headers
+   - Do NOT add or remove separator lines
+   - Do NOT modify frontmatter, title, description, or AGENT INSTRUCTIONS
 
 Task:
-1. Update the markdown file according to the plan
-2. Update the docspec file to accurately reflect the improved markdown
-3. Output TWO unified diffs:
-   - First diff for {md_path}
-   - Second diff for {docspec_path}
+1. Use Read tool to read {docspec_path} and note its EXACT structure (frontmatter, header format, section names, separators)
+2. Use Read tool to read {md_path}
+3. Use Read, Glob, and Grep tools to explore the repository and discover information about:
+   - What the codebase actually contains
+   - What files exist that relate to the markdown
+   - What the actual structure and content of the markdown is
+4. For {docspec_path}: Update ONLY the content text within sections 1-5. Preserve ALL structure, headers, format, and separators exactly as they were.
+5. For {md_path}: Add any missing information identified in the plan
+6. Use the Edit tool to make changes directly to the files
 
-Format: Output the diffs one after another, each starting with "--- " or "diff --git"
-Important: You must output ONLY unified diffs. No explanations, no other text.
-Each diff must clearly reference its target file path."""
+IMPORTANT: When editing {docspec_path}, match the existing file's structure exactly. If it has frontmatter, keep it. If section headers say "Purpose of This Document", keep that exact text. Only change the content paragraphs below the headers."""
     
     env = os.environ.copy()
     if "ANTHROPIC_API_KEY" in os.environ:
@@ -242,8 +285,14 @@ Each diff must clearly reference its target file path."""
     
     model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5")
     
-    cmd = ["claude", "-p", prompt, "--model", model]
-    print(f"Running Claude CLI for implementation with model: {model}")
+    # Use Edit, Read, Glob, and Grep tools for information discovery and editing
+    cmd = [
+        "claude", "-p", prompt, 
+        "--model", model,
+        "--tools", "Edit,Read,Glob,Grep",
+        "--permission-mode", "acceptEdits"
+    ]
+    print(f"Running Claude CLI to edit files directly with model: {model}")
     print(f"Prompt length: {len(prompt)} characters")
     
     try:
@@ -272,11 +321,11 @@ Each diff must clearly reference its target file path."""
             error_msg += "\nNo output captured (both stdout and stderr are empty)"
         raise RuntimeError(error_msg)
     
-    output = result.stdout.strip()
-    return extract_unified_diffs(output, md_path, docspec_path)
+    # Verify files were actually modified
+    print("✅ Claude has updated the files directly")
 
 
-def apply_patch(patch: str, expected_path: str) -> None:
+def _apply_patch_unused(patch: str, expected_path: str) -> None:
     """Apply unified diff patch using git apply."""
     if not patch.strip():
         return
@@ -291,11 +340,76 @@ def apply_patch(patch: str, expected_path: str) -> None:
             f"Patch did not reference expected path: {expected_path}"
         )
     
-    p = subprocess.run(
-        ["git", "apply", "--whitespace=fix", "-"], input=patch, text=True
-    )
-    if p.returncode != 0:
-        raise RuntimeError(f"git apply failed for {expected_path}")
+    # Normalize patch: remove trailing whitespace from context lines (but keep it in content)
+    # This helps with git apply's strict whitespace checking
+    normalized_lines = []
+    for line in patch.splitlines():
+        # For context lines (starting with space), remove trailing whitespace
+        if line.startswith(' ') and len(line) > 1:
+            normalized_lines.append(line.rstrip())
+        # For other lines, keep as-is (they might have intentional trailing spaces)
+        else:
+            normalized_lines.append(line)
+    normalized_patch = '\n'.join(normalized_lines) + '\n'
+    
+    # Write patch to temporary file for better error handling
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.patch', delete=False) as f:
+        f.write(normalized_patch)
+        patch_file = f.name
+    
+    try:
+        # Try applying with whitespace fix first
+        p = subprocess.run(
+            ["git", "apply", "--whitespace=fix", patch_file], text=True, capture_output=True
+        )
+        if p.returncode != 0:
+            # If that fails, try with more lenient options
+            print(f"Warning: git apply with --whitespace=fix failed, trying with --ignore-whitespace")
+            p = subprocess.run(
+                ["git", "apply", "--ignore-whitespace", patch_file], text=True, capture_output=True
+            )
+            if p.returncode != 0:
+                # Last resort: try with --reject to see what's wrong
+                print(f"Warning: git apply with --ignore-whitespace failed, trying with --reject")
+                p = subprocess.run(
+                    ["git", "apply", "--reject", patch_file], text=True, capture_output=True
+                )
+                if p.returncode != 0:
+                    # Show the error and patch preview for debugging
+                    error_msg = f"git apply failed for {expected_path}"
+                    if p.stderr:
+                        error_msg += f"\nStderr: {p.stderr}"
+                    if p.stdout:
+                        error_msg += f"\nStdout: {p.stdout}"
+                    # Show problematic area of patch for debugging
+                    patch_lines = normalized_patch.splitlines()
+                    # Try to find the line mentioned in error
+                    error_line_num = None
+                    if "line" in (p.stderr or "").lower():
+                        import re
+                        match = re.search(r'line (\d+)', p.stderr or "")
+                        if match:
+                            error_line_num = int(match.group(1))
+                    
+                    if error_line_num:
+                        start = max(0, error_line_num - 10)
+                        end = min(len(patch_lines), error_line_num + 10)
+                        error_msg += f"\nPatch around error line {error_line_num}:\n"
+                        for i in range(start, end):
+                            marker = ">>> " if i == error_line_num - 1 else "    "
+                            error_msg += f"{marker}{i+1}: {patch_lines[i]}\n"
+                    else:
+                        error_msg += f"\nPatch preview (first 30 lines):\n" + "\n".join(patch_lines[:30])
+                    raise RuntimeError(error_msg)
+                else:
+                    print(f"Applied patch with some rejections (check .rej files if any)")
+    finally:
+        # Clean up temp file
+        try:
+            os.unlink(patch_file)
+        except:
+            pass
 
 
 def validate_docspec(docspec_path: Path) -> None:
@@ -344,6 +458,7 @@ def main() -> None:
             check=True,
             text=True,
             capture_output=True,
+            cwd=str(repo_root),
         )
         print(f"✅ Generated docspec file: {docspec_path}")
     except subprocess.CalledProcessError as e:
@@ -358,7 +473,7 @@ def main() -> None:
     docspec_text = read_text(docspec_path)
     
     # Plan phase
-    print("\n📋 Planning improvements with Claude...")
+    print("\n📋 Discovering information gaps with Claude...")
     plan = call_claude_cli_for_plan(
         str(md_path.relative_to(repo_root)),
         md_text,
@@ -370,8 +485,8 @@ def main() -> None:
     print(f"\nPlan preview (first 500 chars):\n{plan[:500]}...\n")
     
     # Implementation phase
-    print("\n🔧 Implementing plan with Claude...")
-    md_diff, docspec_diff = call_claude_cli_for_implementation(
+    print("\n🔧 Updating files based on information discovery...")
+    call_claude_cli_for_implementation(
         plan,
         str(md_path.relative_to(repo_root)),
         md_text,
@@ -380,20 +495,31 @@ def main() -> None:
         repo_root,
     )
     
-    # Apply patches
-    print(f"\n📝 Applying patch to {md_path.name}...")
-    apply_patch(md_diff, str(md_path.relative_to(repo_root)))
-    print(f"✅ Applied patch to {md_path.name}")
+    # Verify files were changed
+    print(f"\n📝 Verifying changes to {md_path.name} and {docspec_path.name}...")
+    if not md_path.exists():
+        raise RuntimeError(f"Markdown file was deleted: {md_path}")
+    if not docspec_path.exists():
+        raise RuntimeError(f"Docspec file was deleted: {docspec_path}")
     
-    print(f"\n📝 Applying patch to {docspec_path.name}...")
-    apply_patch(docspec_diff, str(docspec_path.relative_to(repo_root)))
-    print(f"✅ Applied patch to {docspec_path.name}")
+    new_md_text = read_text(md_path)
+    new_docspec_text = read_text(docspec_path)
+    
+    if new_md_text == md_text:
+        print(f"⚠️  Warning: {md_path.name} appears unchanged")
+    else:
+        print(f"✅ {md_path.name} has been updated")
+    
+    if new_docspec_text == docspec_text:
+        print(f"⚠️  Warning: {docspec_path.name} appears unchanged")
+    else:
+        print(f"✅ {docspec_path.name} has been updated")
     
     # Validate docspec
     print(f"\n✅ Validating updated docspec...")
     validate_docspec(docspec_path)
     
-    print("\n✅ Done! Both files have been improved.")
+    print("\n✅ Done! Files have been updated with discovered information.")
 
 
 if __name__ == "__main__":
