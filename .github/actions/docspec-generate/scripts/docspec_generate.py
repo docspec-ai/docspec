@@ -9,11 +9,9 @@ and updates only the content of sections 1-5 (preserving structure).
 
 import os
 import subprocess
-import sys
 import importlib.util
 from pathlib import Path
 from string import Template
-from typing import List
 
 # Load shared library module explicitly
 _shared_path = Path(__file__).parent.parent.parent / "_shared" / "claude_utils.py"

@@ -9,7 +9,6 @@ calls Claude API to update markdown files directly.
 import os
 import re
 import subprocess
-import sys
 import importlib.util
 from pathlib import Path
 from string import Template
