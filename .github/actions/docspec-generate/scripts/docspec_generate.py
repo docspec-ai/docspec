@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Docspec information discovery script for GitHub Actions.
+Docspec generate script for GitHub Actions.
 
 Takes a markdown file, generates/overwrites its docspec,
 uses Claude to discover missing or irrelevant information,
@@ -9,33 +9,21 @@ and updates only the content of sections 1-5 (preserving structure).
 
 import os
 import subprocess
+import sys
+import importlib.util
 from pathlib import Path
 from string import Template
 from typing import List
 
-VERBOSE = os.getenv("VERBOSE", "true").lower() not in ("false", "0", "no")  # Default to verbose
+# Load shared library module explicitly
+_shared_path = Path(__file__).parent.parent.parent / "_shared" / "claude_utils.py"
+spec = importlib.util.spec_from_file_location("claude_utils", _shared_path)
+claude_utils = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(claude_utils)
 
-
-def format_cmd_for_logging(cmd: List[str]) -> str:
-    """Format command for logging, replacing large prompt arguments with summaries."""
-    formatted = []
-    i = 0
-    while i < len(cmd):
-        # Check if this is a prompt argument (-p followed by prompt)
-        if cmd[i] == "-p" and i + 1 < len(cmd):
-            prompt = cmd[i + 1]
-            formatted.append("-p")
-            formatted.append(f"[PROMPT: {len(prompt)} chars]")
-            i += 2
-        else:
-            formatted.append(cmd[i])
-            i += 1
-    return " ".join(formatted)
-
-
-def read_text(path: Path) -> str:
-    """Read file content as UTF-8."""
-    return path.read_text(encoding="utf-8")
+VERBOSE = claude_utils.VERBOSE
+read_text = claude_utils.read_text
+run_claude_cli = claude_utils.run_claude_cli
 
 
 def load_template(template_name: str, **kwargs) -> str:
@@ -62,96 +50,13 @@ def call_claude_cli_for_plan(
         docspec_text=docspec_text,
     )
     
-    env = os.environ.copy()
-    if "ANTHROPIC_API_KEY" in os.environ:
-        env["ANTHROPIC_API_KEY"] = os.environ["ANTHROPIC_API_KEY"]
-    
-    model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5")
-    
-    # Verify CLI is available
-    try:
-        claude_check = subprocess.run(
-            ["claude", "--version"],
-            text=True,
-            capture_output=True,
-            timeout=10,
-        )
-        if claude_check.returncode != 0:
-            print(f"Warning: 'claude --version' failed: {claude_check.stderr}")
-    except FileNotFoundError:
-        raise RuntimeError(
-            "Claude CLI not found. Please install with: npm install -g @anthropic-ai/claude-code"
-        )
-    except Exception as e:
-        print(f"Warning: Could not verify Claude CLI: {e}")
-    
-    # Check API key
-    if "ANTHROPIC_API_KEY" not in env or not env["ANTHROPIC_API_KEY"]:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY environment variable is not set or is empty"
-        )
-    
-    # Use regular mode with exploration tools for information discovery
-    cmd = [
-        "claude", "-p", prompt, 
-        "--model", model,
-        "--tools", "default"
-    ]
-    
-    # Add verbose flag if enabled
-    if VERBOSE:
-        cmd.append("--verbose")
-        print("[DEBUG] Verbose mode enabled for Claude CLI")
-    
-    print(f"Running Claude CLI for information discovery with model: {model}")
-    print(f"Prompt length: {len(prompt)} characters")
-    if VERBOSE:
-        print(f"[DEBUG] Full command: {format_cmd_for_logging(cmd)}")
-        print(f"[DEBUG] Working directory: {repo_root}")
-    
-    try:
-        # Always capture output (we need it for the plan), but print it in verbose mode
-        result = subprocess.run(
-            cmd,
-            text=True,
-            capture_output=True,
-            cwd=str(repo_root),
-            env=env,
-            timeout=300,  # 5 minute timeout
-        )
-        
-        # In verbose mode, print the captured output
-        if VERBOSE:
-            print("\n" + "="*80)
-            print("CLAUDE CLI OUTPUT - PLAN PHASE (verbose mode):")
-            print("="*80 + "\n")
-            if result.stdout:
-                print(result.stdout)
-            if result.stderr:
-                print("STDERR:", result.stderr)
-            print("\n" + "="*80)
-            print("END OF CLAUDE CLI OUTPUT - PLAN PHASE")
-            print("="*80 + "\n")
-    except subprocess.TimeoutExpired:
-        raise RuntimeError("Claude CLI timed out after 5 minutes")
-    except FileNotFoundError:
-        raise RuntimeError(
-            "Claude CLI not found. Please install with: npm install -g @anthropic-ai/claude-code"
-        )
-    
-    if result.returncode != 0:
-        error_msg = f"Claude CLI failed with return code {result.returncode}"
-        if VERBOSE:
-            # In verbose mode, output was already streamed
-            error_msg += "\n(Check output above for details)"
-        else:
-            if result.stderr:
-                error_msg += f"\nStderr: {result.stderr}"
-            if result.stdout:
-                error_msg += f"\nStdout: {result.stdout[:1000]}"  # First 1000 chars
-            if not result.stderr and not result.stdout:
-                error_msg += "\nNo output captured (both stdout and stderr are empty)"
-        raise RuntimeError(error_msg)
+    # Use shared Claude CLI utility (without permission mode for plan phase)
+    result = run_claude_cli(
+        prompt=prompt,
+        repo_root=repo_root,
+        permission_mode=None,
+        output_label="CLAUDE CLI OUTPUT - PLAN PHASE",
+    )
     
     plan = result.stdout.strip()
     if not plan:
@@ -176,79 +81,15 @@ def call_claude_cli_for_implementation(
         docspec_text=docspec_text,
     )
     
-    env = os.environ.copy()
-    if "ANTHROPIC_API_KEY" in os.environ:
-        env["ANTHROPIC_API_KEY"] = os.environ["ANTHROPIC_API_KEY"]
-    
-    model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5")
-    
-    # Use Edit, Read, Glob, and Grep tools for information discovery and editing
-    cmd = [
-        "claude", "-p", prompt, 
-        "--model", model,
-        "--tools", "default",
-        "--permission-mode", "acceptEdits"
-    ]
-    
-    # Add verbose flag if enabled
-    if VERBOSE:
-        cmd.append("--verbose")
-        print("[DEBUG] Verbose mode enabled for Claude CLI")
-    
-    print(f"Running Claude CLI to edit files directly with model: {model}")
-    print(f"Prompt length: {len(prompt)} characters")
-    if VERBOSE:
-        print(f"[DEBUG] Full command: {format_cmd_for_logging(cmd)}")
-        print(f"[DEBUG] Working directory: {repo_root}")
-    
-    try:
-        # Always capture output, but print it in verbose mode
-        result = subprocess.run(
-            cmd,
-            text=True,
-            capture_output=True,
-            cwd=str(repo_root),
-            env=env,
-            timeout=300,  # 5 minute timeout
-        )
-        
-        # In verbose mode, print the captured output
-        if VERBOSE:
-            print("\n" + "="*80)
-            print("CLAUDE CLI OUTPUT - IMPLEMENTATION PHASE (verbose mode):")
-            print("="*80 + "\n")
-            if result.stdout:
-                print(result.stdout)
-            if result.stderr:
-                print("STDERR:", result.stderr)
-            print("\n" + "="*80)
-            print("END OF CLAUDE CLI OUTPUT - IMPLEMENTATION PHASE")
-            print("="*80 + "\n")
-    except subprocess.TimeoutExpired:
-        raise RuntimeError("Claude CLI timed out after 5 minutes")
-    except FileNotFoundError:
-        raise RuntimeError(
-            "Claude CLI not found. Please install with: npm install -g @anthropic-ai/claude-code"
-        )
-    
-    if result.returncode != 0:
-        error_msg = f"Claude CLI failed with return code {result.returncode}"
-        if VERBOSE:
-            # In verbose mode, output was already streamed
-            error_msg += "\n(Check output above for details)"
-        else:
-            if result.stderr:
-                error_msg += f"\nStderr: {result.stderr}"
-            if result.stdout:
-                error_msg += f"\nStdout: {result.stdout[:1000]}"  # First 1000 chars
-            if not result.stderr and not result.stdout:
-                error_msg += "\nNo output captured (both stdout and stderr are empty)"
-        raise RuntimeError(error_msg)
+    # Use shared Claude CLI utility (with permission mode for implementation phase)
+    run_claude_cli(
+        prompt=prompt,
+        repo_root=repo_root,
+        output_label="CLAUDE CLI OUTPUT - IMPLEMENTATION PHASE",
+    )
     
     # Verify files were actually modified
     print("✅ Claude has updated the files directly")
-    if VERBOSE:
-        print("[DEBUG] Claude CLI completed successfully")
 
 
 def validate_docspec(docspec_path: Path) -> None:
