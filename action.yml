@@ -78,7 +78,7 @@ runs:
         MAX_DIFF_CHARS: ${{ inputs.max_diff_chars }}
         ANTHROPIC_MODEL: ${{ inputs.anthropic_model }}
       run: |
-        python ${{ github.action_path }}/.github/actions/docspec-check/scripts/docspec_update.py
+        python ${{ github.action_path }}/.github/actions/docspec-check/scripts/docspec_check.py
 
     - name: Configure git
       shell: bash

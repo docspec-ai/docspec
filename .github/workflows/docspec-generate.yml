@@ -68,7 +68,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           MARKDOWN_FILE: ${{ inputs.markdown_file }}
         run: |
-          python ${{ github.workspace }}/.github/actions/docspec-generate/scripts/improve_docspec.py
+          python ${{ github.workspace }}/.github/actions/docspec-generate/scripts/docspec_generate.py
 
       - name: Configure git
         shell: bash
