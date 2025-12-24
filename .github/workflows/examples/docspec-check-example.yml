@@ -1,3 +1,9 @@
+# Example workflow for using docspec-check in your repository
+# Copy this file to .github/workflows/docspec-check.yml in your repo
+#
+# This workflow uses github-ai-actions to automatically update documentation
+# based on *.docspec.md files after PR merges.
+
 name: Docspec check
 
 on:
@@ -111,6 +117,7 @@ jobs:
 
       - name: Run AI automation for docspec check
         if: steps.prepare_prompt.outputs.has_docspecs == 'true'
+        # Uses github-ai-actions to run Claude Code and create PRs
         uses: docspec-ai/github-ai-actions@main
         with:
           provider: claude

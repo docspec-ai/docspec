@@ -1,0 +1,36 @@
+# Example workflow for using the docspec-generate action in your repository
+# Copy this file to .github/workflows/docspec-generate.yml in your repo
+
+name: Docspec generate
+
+on:
+  workflow_dispatch:
+    inputs:
+      markdown_file:
+        description: 'Path to markdown file (e.g., README.md)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: docspec-generate-${{ github.repository }}-${{ inputs.markdown_file }}
+  cancel-in-progress: false
+
+jobs:
+  generate_docspec:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run docspec generate
+        # Replace 'owner/repo' with your repository (e.g., 'winton/docspec')
+        # Use a specific version tag (e.g., @v1.0.0) or branch (e.g., @main) for stability
+        # The path '.github/actions/docspec-generate' points to the action in the subdirectory
+        uses: owner/repo/.github/actions/docspec-generate@v1.0.0
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          markdown_file: ${{ inputs.markdown_file }}
+

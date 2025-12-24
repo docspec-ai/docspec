@@ -111,10 +111,38 @@ The hook will automatically validate any modified `*.docspec.md` files on commit
 
 ## GitHub Action Integration
 
-Docspec includes two GitHub Actions for different use cases:
+Docspec includes GitHub Actions workflows that use [github-ai-actions](https://github.com/docspec-ai/github-ai-actions) to automatically maintain documentation:
 
-1. **Post-merge documentation updates** - Automatically syncs markdown files after PR merges (workflow file: `.github/workflows/docspec-check.yml`, workflow name: "Docspec check")
-2. **Manual docspec generation** - Manually triggered workflow to generate and improve docspec files (workflow file: `.github/workflows/docspec-generate.yml`, workflow name: "Docspec generate")
+1. **Post-merge documentation updates** - Automatically syncs markdown files after PR merges
+2. **Manual docspec generation** - Manually triggered workflow to generate and improve docspec files
+
+### Using Docspec Workflows in Your Repository
+
+To use these workflows in your own repository:
+
+#### Quick Start
+
+1. **Copy the example workflow files** from [`.github/workflows/examples/`](.github/workflows/examples/) to your repository's `.github/workflows/` directory
+2. **Copy the prompt preparation scripts** from [`.github/scripts/`](.github/scripts/) to your repository's `.github/scripts/` directory:
+   - `prepare-docspec-check-prompt.py` - For docspec-check workflow
+   - `prepare-docspec-generate-prompts.py` - For docspec-generate workflow
+3. **Configure secrets**:
+   - Add `ANTHROPIC_API_KEY` to your repository secrets (Settings → Secrets and variables → Actions)
+   - `GITHUB_TOKEN` is automatically provided by GitHub Actions
+
+#### How It Works
+
+The workflows use `docspec-ai/github-ai-actions@main` which:
+- Extracts PR information from GitHub event context
+- Runs Claude Code CLI to make changes based on prompts
+- Automatically creates branches, commits, and PRs
+
+#### Example Workflows
+
+- **docspec-check**: See [`.github/workflows/examples/docspec-check-example.yml`](.github/workflows/examples/docspec-check-example.yml)
+- **docspec-generate**: See [`.github/workflows/examples/docspec-generate-example.yml`](.github/workflows/examples/docspec-generate-example.yml)
+
+The workflows in this repository use the same pattern as the examples, ensuring consistency.
 
 ### Post-Merge Documentation Updates
 
@@ -152,9 +180,7 @@ The action supports optional inputs:
 - `max_diff_chars` (default: `120000`) - Maximum characters in PR diff before truncation
 - `anthropic_model` (default: `claude-sonnet-4-5`) - Anthropic model to use (short alias for the Claude Sonnet 4.5 model)
 
-See [`.github/workflows/docspec-check.yml`](.github/workflows/docspec-check.yml) for the complete workflow file and [`action.yml`](action.yml) for all available configuration options.
-
-**Note**: For this repository's own workflow files, you can use the local reference `uses: ./` (at the action level in the step) instead of the published action reference. This applies to both the post-merge workflow and the manual improvement workflow.
+See [`.github/workflows/docspec-check.yml`](.github/workflows/docspec-check.yml) for the complete workflow file. The workflow uses `docspec-ai/github-ai-actions@main` - see the [github-ai-actions documentation](https://github.com/docspec-ai/github-ai-actions) for all available configuration options.
 
 #### Safety Features
 
