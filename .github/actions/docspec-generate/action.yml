@@ -1,0 +1,82 @@
+name: 'Docspec Generate'
+description: 'Manually trigger generation and improvements to a docspec file and its associated markdown file'
+
+inputs:
+  markdown_file:
+    description: 'Path to markdown file (e.g., README.md)'
+    required: true
+  anthropic_api_key:
+    description: 'Anthropic API key for Claude API access'
+    required: true
+  github_token:
+    description: 'GitHub token for creating PRs (use secrets.GITHUB_TOKEN)'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install docspec CLI
+      shell: bash
+      run: npm install -g docspec
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Prepare docspec generate prompts
+      id: prepare_prompts
+      shell: bash
+      run: |
+        # Find the repository root by walking up from action_path
+        # github.action_path points to .github/actions/docspec-generate in the checked-out action repo
+        # We need to go up 3 levels: docspec-generate -> actions -> .github -> repo root
+        ACTION_PATH="${{ github.action_path }}"
+        REPO_ROOT=$(dirname "$(dirname "$(dirname "$ACTION_PATH")")")
+        SCRIPT_PATH="$REPO_ROOT/.github/scripts/prepare-docspec-generate-prompts.py"
+        
+        if [ ! -f "$SCRIPT_PATH" ]; then
+          echo "Error: Script not found at $SCRIPT_PATH"
+          echo "Action path: $ACTION_PATH"
+          echo "Repo root: $REPO_ROOT"
+          exit 1
+        fi
+        
+        # Run script from action repository
+        python3 "$SCRIPT_PATH" > prompts_output.txt
+        # Extract plan prompt
+        sed -n '/===PLAN_PROMPT_START===/,/===PLAN_PROMPT_END===/p' prompts_output.txt | sed '1d;$d' > plan_prompt.txt
+        # Extract implementation prompt
+        sed -n '/===IMPL_PROMPT_START===/,/===IMPL_PROMPT_END===/p' prompts_output.txt | sed '1d;$d' > impl_prompt.txt
+        # Output as multiline strings
+        {
+          echo 'plan_prompt<<EOF'
+          cat plan_prompt.txt
+          echo EOF
+        } >> $GITHUB_OUTPUT
+        {
+          echo 'impl_prompt<<EOF'
+          cat impl_prompt.txt
+          echo EOF
+        } >> $GITHUB_OUTPUT
+      env:
+        MARKDOWN_FILE: ${{ inputs.markdown_file }}
+
+    - name: Run AI automation for docspec generate
+      uses: docspec-ai/github-ai-actions@main
+      with:
+        provider: claude
+        enable_plan: 'true'
+        plan_prompt_template: ${{ steps.prepare_prompts.outputs.plan_prompt }}
+        prompt_template: ${{ steps.prepare_prompts.outputs.impl_prompt }}
+        anthropic_api_key: ${{ inputs.anthropic_api_key }}
+        github_token: ${{ inputs.github_token }}
+        branch_prefix: "docs/generate-"
+        pr_title_template: "Docs: generate and improve ${{ inputs.markdown_file }} and its docspec"
+        pr_body_template: "Automated generation and improvements to ${{ inputs.markdown_file }} and its docspec file using Claude."
+

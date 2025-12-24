@@ -111,38 +111,74 @@ The hook will automatically validate any modified `*.docspec.md` files on commit
 
 ## GitHub Action Integration
 
-Docspec includes GitHub Actions workflows that use [github-ai-actions](https://github.com/docspec-ai/github-ai-actions) to automatically maintain documentation:
+Docspec provides reusable GitHub Actions that automatically maintain documentation:
 
 1. **Post-merge documentation updates** - Automatically syncs markdown files after PR merges
 2. **Manual docspec generation** - Manually triggered workflow to generate and improve docspec files
 
-### Using Docspec Workflows in Your Repository
-
-To use these workflows in your own repository:
+### Using Docspec Actions in Your Repository
 
 #### Quick Start
 
 1. **Copy the example workflow files** from [`.github/workflows/examples/`](.github/workflows/examples/) to your repository's `.github/workflows/` directory
-2. **Copy the prompt preparation scripts** from [`.github/scripts/`](.github/scripts/) to your repository's `.github/scripts/` directory:
-   - `prepare-docspec-check-prompt.py` - For docspec-check workflow
-   - `prepare-docspec-generate-prompts.py` - For docspec-generate workflow
+2. **Update the action reference** in the workflow file:
+   - Replace `owner/repo` with the actual repository (e.g., `docspec-ai/docspec`)
+   - Use a specific version tag (e.g., `@v1.0.0`) or branch (e.g., `@main`) for stability
 3. **Configure secrets**:
    - Add `ANTHROPIC_API_KEY` to your repository secrets (Settings → Secrets and variables → Actions)
    - `GITHUB_TOKEN` is automatically provided by GitHub Actions
 
-#### How It Works
+That's it! No need to copy Python scripts or manage complex setup - the actions handle everything internally.
 
-The workflows use `docspec-ai/github-ai-actions@main` which:
-- Extracts PR information from GitHub event context
-- Runs Claude Code CLI to make changes based on prompts
-- Automatically creates branches, commits, and PRs
+#### Example: docspec-check
+
+```yaml
+name: Docspec check
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  docspec_check:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docspec-ai/docspec/.github/actions/docspec-check@main
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+#### Example: docspec-generate
+
+```yaml
+name: Docspec generate
+
+on:
+  workflow_dispatch:
+    inputs:
+      markdown_file:
+        description: 'Path to markdown file (e.g., README.md)'
+        required: true
+
+jobs:
+  generate_docspec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docspec-ai/docspec/.github/actions/docspec-generate@main
+        with:
+          markdown_file: ${{ inputs.markdown_file }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+```
 
 #### Example Workflows
 
 - **docspec-check**: See [`.github/workflows/examples/docspec-check-example.yml`](.github/workflows/examples/docspec-check-example.yml)
 - **docspec-generate**: See [`.github/workflows/examples/docspec-generate-example.yml`](.github/workflows/examples/docspec-generate-example.yml)
-
-The workflows in this repository use the same pattern as the examples, ensuring consistency.
 
 ### Post-Merge Documentation Updates
 
@@ -150,9 +186,11 @@ This action automatically updates markdown files based on `*.docspec.md` files a
 
 #### Setup
 
-1. **Add the workflow** to your repository: [`.github/workflows/docspec-check.yml`](.github/workflows/docspec-check.yml)
+1. **Copy the workflow** from [`.github/workflows/examples/docspec-check-example.yml`](.github/workflows/examples/docspec-check-example.yml) to your repository's `.github/workflows/docspec-check.yml`
 
-2. **Configure secrets**:
+2. **Copy the Python script** `.github/scripts/prepare-docspec-check-prompt.py` to your repository
+
+3. **Configure secrets**:
    - Add `ANTHROPIC_API_KEY` to your repository secrets (Settings → Secrets and variables → Actions)
    - `GITHUB_TOKEN` is automatically provided by GitHub Actions
 
@@ -180,7 +218,7 @@ The action supports optional inputs:
 - `max_diff_chars` (default: `120000`) - Maximum characters in PR diff before truncation
 - `anthropic_model` (default: `claude-sonnet-4-5`) - Anthropic model to use (short alias for the Claude Sonnet 4.5 model)
 
-See [`.github/workflows/docspec-check.yml`](.github/workflows/docspec-check.yml) for the complete workflow file. The workflow uses `docspec-ai/github-ai-actions@main` - see the [github-ai-actions documentation](https://github.com/docspec-ai/github-ai-actions) for all available configuration options.
+See [`.github/workflows/examples/docspec-check-example.yml`](.github/workflows/examples/docspec-check-example.yml) for the complete workflow file. The action accepts optional inputs like `max_docspecs` and `max_diff_chars` - see [`.github/actions/docspec-check/action.yml`](.github/actions/docspec-check/action.yml) for all available configuration options.
 
 #### Safety Features
 
@@ -205,7 +243,13 @@ The docspec-generate workflow allows you to manually trigger generation and impr
 
 #### Setup
 
-Add the workflow to your repository: [`.github/workflows/docspec-generate.yml`](.github/workflows/docspec-generate.yml)
+1. **Copy the workflow** from [`.github/workflows/examples/docspec-generate-example.yml`](.github/workflows/examples/docspec-generate-example.yml) to your repository's `.github/workflows/docspec-generate.yml`
+
+2. **Copy the Python script** `.github/scripts/prepare-docspec-generate-prompts.py` to your repository
+
+3. **Configure secrets**:
+   - Add `ANTHROPIC_API_KEY` to your repository secrets (Settings → Secrets and variables → Actions)
+   - `GITHUB_TOKEN` is automatically provided by GitHub Actions
 
 #### How It Works
 

@@ -30,98 +30,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract PR details for prompt preparation
-        id: pr_details
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            # Manual trigger: fetch PR details from API
-            PR_NUM="${{ inputs.pr_number }}"
-            PR_DATA=$(gh pr view "$PR_NUM" --json baseRefName,baseRefOid,mergeCommit,headRefOid,number)
-            MERGE_SHA=$(echo "$PR_DATA" | jq -r '.mergeCommit.oid // .headRefOid')
-            echo "base_sha=$(echo "$PR_DATA" | jq -r '.baseRefOid')" >> $GITHUB_OUTPUT
-            echo "merge_sha=$MERGE_SHA" >> $GITHUB_OUTPUT
-            echo "pr_number=$(echo "$PR_DATA" | jq -r '.number')" >> $GITHUB_OUTPUT
-            echo "base_ref=$(echo "$PR_DATA" | jq -r '.baseRefName')" >> $GITHUB_OUTPUT
-          else
-            # PR merge trigger: use PR event data
-            echo "base_sha=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
-            echo "merge_sha=${{ github.event.pull_request.merge_commit_sha || github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-            echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
-            echo "base_ref=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Run docspec check
+        uses: ${{ github.repository }}/.github/actions/docspec-check@${{ github.ref_name }}
         with:
-          python-version: '3.11'
-
-      - name: Prepare docspec check prompt
-        id: prepare_prompt
-        shell: bash
-        run: |
-          # Run script and capture both stdout and stderr
-          python3 .github/scripts/prepare-docspec-check-prompt.py > prompt.txt 2>&1
-          SCRIPT_EXIT_CODE=$?
-          
-          # Check if prompt file exists and has content
-          if [ ! -f prompt.txt ] || [ ! -s prompt.txt ]; then
-            echo "has_docspecs=false" >> $GITHUB_OUTPUT
-            echo "Error: Prompt preparation failed or produced no output"
-            if [ $SCRIPT_EXIT_CODE -ne 0 ]; then
-              echo "Script exited with code: $SCRIPT_EXIT_CODE"
-            fi
-            exit 1
-          fi
-          
-          # Check if no docspecs were found (expected case - script exits with 0)
-          if grep -q "No relevant docspec files found" prompt.txt; then
-            echo "has_docspecs=false" >> $GITHUB_OUTPUT
-            echo "No docspec files found, skipping AI automation"
-          # Check if script failed (unexpected error)
-          elif [ $SCRIPT_EXIT_CODE -ne 0 ]; then
-            echo "has_docspecs=false" >> $GITHUB_OUTPUT
-            echo "Error: Script failed with exit code $SCRIPT_EXIT_CODE"
-            echo "Output:"
-            cat prompt.txt
-            exit 1
-          # Script succeeded and produced a valid prompt
-          else
-            # Verify prompt has meaningful content (not just whitespace)
-            if [ -z "$(cat prompt.txt | tr -d '[:space:]')" ]; then
-              echo "has_docspecs=false" >> $GITHUB_OUTPUT
-              echo "Error: Prompt is empty or contains only whitespace"
-              exit 1
-            fi
-            echo "has_docspecs=true" >> $GITHUB_OUTPUT
-            # Read the prompt and set as output (multiline)
-            {
-              echo 'prompt<<EOF'
-              cat prompt.txt
-              echo EOF
-            } >> $GITHUB_OUTPUT
-          fi
-        env:
-          BASE_SHA: ${{ steps.pr_details.outputs.base_sha }}
-          MERGE_SHA: ${{ steps.pr_details.outputs.merge_sha }}
-          MAX_DOCSPECS: '10'
-          MAX_DIFF_CHARS: '120000'
-
-      - name: Run AI automation for docspec check
-        if: steps.prepare_prompt.outputs.has_docspecs == 'true'
-        uses: docspec-ai/github-ai-actions@main
-        with:
-          provider: claude
-          prompt_template: ${{ steps.prepare_prompt.outputs.prompt }}
-          # pr_number is optional - github-ai-actions will extract it from event context if not provided
-          # For workflow_dispatch, we provide it explicitly; for PR merge events, it's auto-extracted
-          pr_number: ${{ steps.pr_details.outputs.pr_number }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch_prefix: "docs/docspec-update-pr-${{ steps.pr_details.outputs.pr_number }}-"
-          pr_title_template: "Docs: update from docspec after #{{PR_NUMBER}}"
-          pr_body_template: "Automated doc updates based on *.docspec.md after merge of #{{PR_NUMBER}}."
-          base_branch: ${{ steps.pr_details.outputs.base_ref }}
+          # pr_number is optional - action will extract from event context if not provided
+          pr_number: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || '' }}
 
