@@ -132,6 +132,9 @@ def main() -> None:
         ""
     ]
     
+    # Track if any docspecs were successfully added
+    docspecs_added = 0
+    
     for docspec_path in docspec_paths:
         target_md = target_markdown_for_docspec(docspec_path)
         if not target_md or not target_md.exists():
@@ -153,6 +156,12 @@ def main() -> None:
             "</markdown>",
             "",
         ])
+        docspecs_added += 1
+    
+    # If no docspecs were added (all had missing target markdown files), exit early
+    if docspecs_added == 0:
+        print("No relevant docspec files found with valid target markdown files.")
+        sys.exit(0)
     
     prompt_parts.extend([
         "Task:",
