@@ -30,49 +30,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Fetch PR details
-        id: fetch_pr
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const pr = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: parseInt('${{ inputs.pr_number }}')
-            });
-            
-            core.setOutput('base_sha', pr.data.base.sha);
-            core.setOutput('merge_sha', pr.data.merge_commit_sha || pr.data.head.sha);
-            core.setOutput('pr_number', pr.data.number.toString());
-            core.setOutput('base_ref', pr.data.base.ref);
-
-      - name: Determine commit SHAs
-        id: determine_shas
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            # Manual trigger: use PR details from API
-            echo "base_sha=${{ steps.fetch_pr.outputs.base_sha }}" >> $GITHUB_OUTPUT
-            echo "merge_sha=${{ steps.fetch_pr.outputs.merge_sha }}" >> $GITHUB_OUTPUT
-            echo "pr_number=${{ steps.fetch_pr.outputs.pr_number }}" >> $GITHUB_OUTPUT
-            echo "base_ref=${{ steps.fetch_pr.outputs.base_ref }}" >> $GITHUB_OUTPUT
-          else
-            # PR merge trigger: use PR event data
-            echo "base_sha=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
-            echo "merge_sha=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_OUTPUT
-            echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
-            echo "base_ref=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
-          fi
-
       - name: Run docspec check
-        uses: ./
+        uses: docspec-ai/docspec/.github/actions/docspec-check@main
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          pr_number: ${{ steps.determine_shas.outputs.pr_number }}
-          base_sha: ${{ steps.determine_shas.outputs.base_sha }}
-          merge_sha: ${{ steps.determine_shas.outputs.merge_sha }}
-          repo: ${{ github.repository }}
-          base_ref: ${{ steps.determine_shas.outputs.base_ref }}
 

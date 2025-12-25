@@ -26,83 +26,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install docspec CLI
-        shell: bash
-        run: |
-          npm install -g docspec
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        shell: bash
-        run: |
-          pip install -r ${{ github.workspace }}/.github/actions/docspec-generate/requirements.txt
-
-      - name: Install Claude Code CLI
-        shell: bash
-        run: |
-          npm install -g @anthropic-ai/claude-code
-
-      - name: Validate markdown file exists
-        shell: bash
-        env:
-          MARKDOWN_FILE: ${{ inputs.markdown_file }}
-        run: |
-          if [ ! -f "$MARKDOWN_FILE" ]; then
-            echo "Error: Markdown file not found: $MARKDOWN_FILE"
-            exit 1
-          fi
-          echo "✅ Markdown file found: $MARKDOWN_FILE"
-
       - name: Run docspec generate
-        shell: bash
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          MARKDOWN_FILE: ${{ inputs.markdown_file }}
-        run: |
-          python ${{ github.workspace }}/.github/actions/docspec-generate/scripts/docspec_generate.py
-
-      - name: Configure git
-        shell: bash
-        run: |
-          git config user.name "docspec-bot"
-          git config user.email "docspec-bot@users.noreply.github.com"
-
-      - name: Create PR if changes exist
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MARKDOWN_FILE: ${{ inputs.markdown_file }}
-        run: |
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "No changes detected."
-            exit 0
-          fi
-
-          # Get the default branch name
-          DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)
-
-          # Create branch name from markdown file path
-          BRANCH_NAME=$(echo "$MARKDOWN_FILE" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
-          BRANCH="docs/generate-${BRANCH_NAME}-$(date +%s)"
-
-          git checkout -b "$BRANCH"
-          git add -A
-          git commit -m "Docs: generate and improve $MARKDOWN_FILE and its docspec"
-
-          git push -u origin "$BRANCH"
-
-          gh pr create \
-            --title "Docs: generate and improve $MARKDOWN_FILE and its docspec" \
-            --body "Automated generation and improvements to $MARKDOWN_FILE and its docspec file using Claude." \
-            --base "$DEFAULT_BRANCH" \
-            --head "$BRANCH"
+        uses: docspec-ai/docspec/.github/actions/docspec-generate@main
+        with:
+          markdown_file: ${{ inputs.markdown_file }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
