@@ -213,7 +213,6 @@ The action supports optional inputs:
 
 - `max_docspecs` (default: `10`) - Maximum number of docspec files to process per merge
 - `max_diff_chars` (default: `120000`) - Maximum characters in PR diff before truncation
-- `anthropic_model` (default: `claude-sonnet-4-5`) - Anthropic model to use (short alias for the Claude Sonnet 4.5 model)
 
 The action accepts optional inputs like `max_docspecs` and `max_diff_chars` - see [`.github/actions/docspec-check/action.yml`](.github/actions/docspec-check/action.yml) for all available configuration options.
 
