@@ -41,7 +41,17 @@ runs:
           echo "pr_number=${{ inputs.pr_number }}" >> $GITHUB_OUTPUT
           echo "base_sha=${{ inputs.base_sha }}" >> $GITHUB_OUTPUT
           echo "merge_sha=${{ inputs.merge_sha }}" >> $GITHUB_OUTPUT
-          echo "base_ref=${{ inputs.base_ref }}" >> $GITHUB_OUTPUT
+          # If base_ref not provided, extract it from PR or event context
+          if [ -n "${{ inputs.base_ref }}" ]; then
+            echo "base_ref=${{ inputs.base_ref }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "pull_request" ]; then
+            # Use PR event data if available
+            echo "base_ref=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
+          else
+            # Fetch from PR API using pr_number
+            PR_DATA=$(gh pr view "${{ inputs.pr_number }}" --json baseRefName)
+            echo "base_ref=$(echo "$PR_DATA" | jq -r '.baseRefName')" >> $GITHUB_OUTPUT
+          fi
         elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
           # Manual trigger: fetch PR details from API
           # Try inputs.pr_number first, then github.event.inputs.pr_number
