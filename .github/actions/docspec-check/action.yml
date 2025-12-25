@@ -117,7 +117,10 @@ runs:
         fi
         
         # Check if no docspecs were found (expected case - script exits with 0)
-        if grep -q "No relevant docspec files found" prompt.txt; then
+        # Use exact match to avoid false positives when the string appears in docspec/markdown content
+        PROMPT_CONTENT=$(cat prompt.txt | tr -d '\n' | sed 's/[[:space:]]*$//')
+        if [ "$PROMPT_CONTENT" = "No relevant docspec files found." ] || \
+           [ "$PROMPT_CONTENT" = "No relevant docspec files found with valid target markdown files." ]; then
           echo "has_docspecs=false" >> $GITHUB_OUTPUT
           echo "No docspec files found, skipping AI automation"
         # Check if script failed (unexpected error)
