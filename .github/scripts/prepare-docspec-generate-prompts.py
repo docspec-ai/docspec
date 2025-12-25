@@ -111,7 +111,7 @@ Output your plan in a clear, structured format focusing on information gaps and 
 
     impl_template = """Based on this information discovery plan:
 <plan>
-${plan}
+{{PLAN}}
 </plan>
 
 You need to update two files:
@@ -160,7 +160,7 @@ Task:
         md_text=md_text,
         docspec_path=str(docspec_path.relative_to(repo_root)),
         docspec_text=docspec_text,
-        plan="${PLAN}",  # This will be replaced by github-ai-actions with the actual plan
+        # Note: {{PLAN}} is left as-is for github-ai-actions to replace when enable_plan: 'true'
     )
     
     # Output prompts (plan first, then implementation, separated by a marker)
