@@ -31,10 +31,8 @@ jobs:
           fetch-depth: 0
 
       - name: Run docspec check
-        uses: ${{ github.repository }}/.github/actions/docspec-check@${{ github.ref_name }}
+        uses: docspec-ai/docspec/.github/actions/docspec-check@main
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          # pr_number is optional - action will extract from event context if not provided
-          pr_number: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || '' }}
 

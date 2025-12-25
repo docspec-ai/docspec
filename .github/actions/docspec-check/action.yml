@@ -44,12 +44,12 @@ runs:
           echo "base_ref=${{ inputs.base_ref }}" >> $GITHUB_OUTPUT
         elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
           # Manual trigger: fetch PR details from API
+          # Try inputs.pr_number first, then github.event.inputs.pr_number
           PR_NUM="${{ inputs.pr_number }}"
-          if [ -z "$PR_NUM" ]; then
-            # Try to get from workflow_dispatch inputs
+          if [ -z "$PR_NUM" ] || [ "$PR_NUM" == "" ]; then
             PR_NUM="${{ github.event.inputs.pr_number }}"
           fi
-          if [ -z "$PR_NUM" ]; then
+          if [ -z "$PR_NUM" ] || [ "$PR_NUM" == "" ]; then
             echo "Error: pr_number must be provided for workflow_dispatch"
             exit 1
           fi
