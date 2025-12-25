@@ -48,11 +48,54 @@ runs:
         fi
         
         # Run script from action repository
-        python3 "$SCRIPT_PATH" > prompts_output.txt
+        python3 "$SCRIPT_PATH" > prompts_output.txt 2>&1
+        SCRIPT_EXIT_CODE=$?
+        
+        # Check if script failed
+        if [ $SCRIPT_EXIT_CODE -ne 0 ]; then
+          echo "Error: Script failed with exit code $SCRIPT_EXIT_CODE"
+          echo "Output:"
+          cat prompts_output.txt
+          exit 1
+        fi
+        
+        # Check if output file exists and has content
+        if [ ! -f prompts_output.txt ] || [ ! -s prompts_output.txt ]; then
+          echo "Error: Prompt preparation failed or produced no output"
+          exit 1
+        fi
+        
         # Extract plan prompt
         sed -n '/===PLAN_PROMPT_START===/,/===PLAN_PROMPT_END===/p' prompts_output.txt | sed '1d;$d' > plan_prompt.txt
         # Extract implementation prompt
         sed -n '/===IMPL_PROMPT_START===/,/===IMPL_PROMPT_END===/p' prompts_output.txt | sed '1d;$d' > impl_prompt.txt
+        
+        # Verify extracted prompt files exist and have content
+        if [ ! -f plan_prompt.txt ] || [ ! -s plan_prompt.txt ]; then
+          echo "Error: Plan prompt extraction failed or produced no output"
+          echo "Full script output:"
+          cat prompts_output.txt
+          exit 1
+        fi
+        
+        if [ ! -f impl_prompt.txt ] || [ ! -s impl_prompt.txt ]; then
+          echo "Error: Implementation prompt extraction failed or produced no output"
+          echo "Full script output:"
+          cat prompts_output.txt
+          exit 1
+        fi
+        
+        # Verify prompts have meaningful content (not just whitespace)
+        if [ -z "$(cat plan_prompt.txt | tr -d '[:space:]')" ]; then
+          echo "Error: Plan prompt is empty or contains only whitespace"
+          exit 1
+        fi
+        
+        if [ -z "$(cat impl_prompt.txt | tr -d '[:space:]')" ]; then
+          echo "Error: Implementation prompt is empty or contains only whitespace"
+          exit 1
+        fi
+        
         # Output as multiline strings
         {
           echo 'plan_prompt<<EOF'
