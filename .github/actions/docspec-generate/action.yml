@@ -67,6 +67,15 @@ runs:
       env:
         MARKDOWN_FILE: ${{ inputs.markdown_file }}
 
+    - name: Get default branch
+      id: default_branch
+      shell: bash
+      run: |
+        DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)
+        echo "branch=$DEFAULT_BRANCH" >> $GITHUB_OUTPUT
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+
     - name: Run AI automation for docspec generate
       uses: docspec-ai/github-ai-actions@main
       with:
@@ -79,4 +88,5 @@ runs:
         branch_prefix: "docs/generate-"
         pr_title_template: "Docs: generate and improve ${{ inputs.markdown_file }} and its docspec"
         pr_body_template: "Automated generation and improvements to ${{ inputs.markdown_file }} and its docspec file using Claude."
+        base_branch: ${{ steps.default_branch.outputs.branch }}
 
