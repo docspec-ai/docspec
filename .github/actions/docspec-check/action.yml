@@ -137,10 +137,12 @@ runs:
           fi
           echo "has_docspecs=true" >> $GITHUB_OUTPUT
           # Read the prompt and set as output (multiline)
+          # Use a unique delimiter to prevent collision with content
+          DELIMITER="DOCSPEC_PROMPT_EOF_$(date +%s)_$$"
           {
-            echo 'prompt<<EOF'
+            echo "prompt<<$DELIMITER"
             cat prompt.txt
-            echo EOF
+            echo "$DELIMITER"
           } >> $GITHUB_OUTPUT
         fi
       env:
