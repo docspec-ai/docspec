@@ -12,6 +12,7 @@ This script:
 import os
 import subprocess
 from pathlib import Path
+from string import Template
 
 
 def read_text(path: Path) -> str:
@@ -20,11 +21,16 @@ def read_text(path: Path) -> str:
 
 
 def substitute_template(template: str, **kwargs) -> str:
-    """Substitute variables in template using ${variable} syntax."""
-    result = template
-    for key, value in kwargs.items():
-        result = result.replace(f"${{{key}}}", value)
-    return result
+    """
+    Substitute variables in template using ${variable} syntax.
+    
+    Uses Template.safe_substitute() to ensure that only variables in the original
+    template are replaced, not patterns that appear in substituted values.
+    This prevents corruption when markdown/docspec content contains template-like
+    patterns (e.g., documentation about template systems).
+    """
+    t = Template(template)
+    return t.safe_substitute(**kwargs)
 
 
 def main() -> None:
