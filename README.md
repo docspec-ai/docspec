@@ -162,6 +162,10 @@ on:
       markdown_file:
         description: 'Path to markdown file (e.g., README.md)'
         required: true
+      overwrite:
+        description: 'If true, overwrite existing docspec file. If false and docspec exists, action will fail.'
+        required: false
+        default: 'false'
 
 jobs:
   generate_docspec:
@@ -171,6 +175,7 @@ jobs:
       - uses: docspec-ai/docspec/.github/actions/docspec-generate@main
         with:
           markdown_file: ${{ inputs.markdown_file }}
+          overwrite: ${{ inputs.overwrite }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -258,7 +263,7 @@ The workflow uses a two-phase approach with Claude Code CLI:
 2. **Implementation Phase**: Claude uses editing tools with `--permission-mode acceptEdits` to update both files based on the discovery plan. It preserves the exact structure of the docspec file (headers, separators, frontmatter, AGENT INSTRUCTIONS section) while only updating the content within sections 1-5.
 
 Before the discovery phase begins, the workflow:
-- Generates or overwrites the docspec file using `docspec generate`
+- Generates the docspec file using `docspec generate` (by default, this fails if the docspec already exists; set `overwrite: true` to overwrite existing docspecs)
 - Validates the updated docspec file using `docspec validate` after changes are made
 
 #### Usage
