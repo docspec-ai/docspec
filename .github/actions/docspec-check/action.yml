@@ -170,8 +170,13 @@ runs:
           exit 1
         fi
         
-        # Run script - it writes to prompt.txt and prints status to stdout
-        SCRIPT_OUTPUT=$(python3 "$SCRIPT_PATH" 2>&1)
+        # Use absolute path for prompt file to ensure it's written to the expected location
+        PROMPT_FILE="$REPO_ROOT/prompt.txt"
+        
+        # Run script - it writes to prompt.txt and prints status to stderr
+        # Change to repo root to ensure script runs from correct directory
+        cd "$REPO_ROOT"
+        SCRIPT_OUTPUT=$(PROMPT_OUTPUT_FILE="$PROMPT_FILE" python3 "$SCRIPT_PATH" 2>&1)
         SCRIPT_EXIT_CODE=$?
         
         # Check if script failed
@@ -182,7 +187,7 @@ runs:
           exit 1
         fi
         
-        # Check if no docspecs were found (script prints to stdout)
+        # Check if no docspecs were found (script prints to stderr)
         if echo "$SCRIPT_OUTPUT" | grep -q "No relevant docspec files found"; then
           echo "has_docspecs=false" >> $GITHUB_OUTPUT
           echo "No docspec files found, skipping AI automation"
@@ -190,26 +195,29 @@ runs:
         fi
         
         # Check if prompt file exists and has content
-        if [ ! -f prompt.txt ] || [ ! -s prompt.txt ]; then
+        if [ ! -f "$PROMPT_FILE" ] || [ ! -s "$PROMPT_FILE" ]; then
           echo "has_docspecs=false" >> $GITHUB_OUTPUT
-          echo "Error: Prompt file not found or empty"
+          echo "Error: Prompt file not found or empty at $PROMPT_FILE"
           echo "Script output: $SCRIPT_OUTPUT"
+          echo "Current directory: $(pwd)"
+          echo "Files in current directory: $(ls -la)"
           exit 1
         fi
         
         # Verify prompt has meaningful content (not just whitespace)
-        if [ -z "$(cat prompt.txt | tr -d '[:space:]')" ]; then
+        if [ -z "$(cat "$PROMPT_FILE" | tr -d '[:space:]')" ]; then
           echo "has_docspecs=false" >> $GITHUB_OUTPUT
           echo "Error: Prompt is empty or contains only whitespace"
           exit 1
         fi
         
         # Read the prompt and set as output (multiline)
+        # Use a unique delimiter that's unlikely to appear in the prompt content
         echo "has_docspecs=true" >> $GITHUB_OUTPUT
-        DELIMITER="DOCSPEC_PROMPT_EOF_$(date +%s)_$$"
+        DELIMITER="DOCSPEC_PROMPT_EOF_$(date +%s)_$$_$RANDOM"
         {
           echo "prompt<<$DELIMITER"
-          cat prompt.txt
+          cat "$PROMPT_FILE"
           echo "$DELIMITER"
         } >> $GITHUB_OUTPUT
       env:
@@ -217,7 +225,6 @@ runs:
         MERGE_SHA: ${{ steps.pr_details.outputs.merge_sha }}
         MAX_DOCSPECS: ${{ inputs.max_docspecs }}
         MAX_DIFF_CHARS: ${{ inputs.max_diff_chars }}
-        PROMPT_OUTPUT_FILE: prompt.txt
 
     - name: Prepare default values
       id: defaults
