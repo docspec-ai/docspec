@@ -102,57 +102,54 @@ runs:
           exit 1
         fi
         
-        # Run script from action repository
-        python3 "$SCRIPT_PATH" > prompt.txt 2>&1
+        # Run script - it writes to prompt.txt and prints status to stdout
+        SCRIPT_OUTPUT=$(python3 "$SCRIPT_PATH" 2>&1)
         SCRIPT_EXIT_CODE=$?
+        
+        # Check if script failed
+        if [ $SCRIPT_EXIT_CODE -ne 0 ]; then
+          echo "has_docspecs=false" >> $GITHUB_OUTPUT
+          echo "Error: Script failed with exit code $SCRIPT_EXIT_CODE"
+          echo "Output: $SCRIPT_OUTPUT"
+          exit 1
+        fi
+        
+        # Check if no docspecs were found (script prints to stdout)
+        if echo "$SCRIPT_OUTPUT" | grep -q "No relevant docspec files found"; then
+          echo "has_docspecs=false" >> $GITHUB_OUTPUT
+          echo "No docspec files found, skipping AI automation"
+          exit 0
+        fi
         
         # Check if prompt file exists and has content
         if [ ! -f prompt.txt ] || [ ! -s prompt.txt ]; then
           echo "has_docspecs=false" >> $GITHUB_OUTPUT
-          echo "Error: Prompt preparation failed or produced no output"
-          if [ $SCRIPT_EXIT_CODE -ne 0 ]; then
-            echo "Script exited with code: $SCRIPT_EXIT_CODE"
-          fi
+          echo "Error: Prompt file not found or empty"
+          echo "Script output: $SCRIPT_OUTPUT"
           exit 1
         fi
         
-        # Check if no docspecs were found (expected case - script exits with 0)
-        # Use exact match to avoid false positives when the string appears in docspec/markdown content
-        PROMPT_CONTENT=$(cat prompt.txt | tr -d '\n' | sed 's/[[:space:]]*$//')
-        if [ "$PROMPT_CONTENT" = "No relevant docspec files found." ] || \
-           [ "$PROMPT_CONTENT" = "No relevant docspec files found with valid target markdown files." ]; then
+        # Verify prompt has meaningful content (not just whitespace)
+        if [ -z "$(cat prompt.txt | tr -d '[:space:]')" ]; then
           echo "has_docspecs=false" >> $GITHUB_OUTPUT
-          echo "No docspec files found, skipping AI automation"
-        # Check if script failed (unexpected error)
-        elif [ $SCRIPT_EXIT_CODE -ne 0 ]; then
-          echo "has_docspecs=false" >> $GITHUB_OUTPUT
-          echo "Error: Script failed with exit code $SCRIPT_EXIT_CODE"
-          echo "Output:"
-          cat prompt.txt
+          echo "Error: Prompt is empty or contains only whitespace"
           exit 1
-        # Script succeeded and produced a valid prompt
-        else
-          # Verify prompt has meaningful content (not just whitespace)
-          if [ -z "$(cat prompt.txt | tr -d '[:space:]')" ]; then
-            echo "has_docspecs=false" >> $GITHUB_OUTPUT
-            echo "Error: Prompt is empty or contains only whitespace"
-            exit 1
-          fi
-          echo "has_docspecs=true" >> $GITHUB_OUTPUT
-          # Read the prompt and set as output (multiline)
-          # Use a unique delimiter to prevent collision with content
-          DELIMITER="DOCSPEC_PROMPT_EOF_$(date +%s)_$$"
-          {
-            echo "prompt<<$DELIMITER"
-            cat prompt.txt
-            echo "$DELIMITER"
-          } >> $GITHUB_OUTPUT
         fi
+        
+        # Read the prompt and set as output (multiline)
+        echo "has_docspecs=true" >> $GITHUB_OUTPUT
+        DELIMITER="DOCSPEC_PROMPT_EOF_$(date +%s)_$$"
+        {
+          echo "prompt<<$DELIMITER"
+          cat prompt.txt
+          echo "$DELIMITER"
+        } >> $GITHUB_OUTPUT
       env:
         BASE_SHA: ${{ steps.pr_details.outputs.base_sha }}
         MERGE_SHA: ${{ steps.pr_details.outputs.merge_sha }}
         MAX_DOCSPECS: ${{ inputs.max_docspecs }}
         MAX_DIFF_CHARS: ${{ inputs.max_diff_chars }}
+        PROMPT_OUTPUT_FILE: prompt.txt
 
     - name: Run AI automation for docspec check
       if: steps.prepare_prompt.outputs.has_docspecs == 'true'

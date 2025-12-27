@@ -6,13 +6,16 @@ This script:
 1. Generates/overwrites the docspec file if needed
 2. Reads the markdown and docspec files
 3. Prepares plan and implementation prompt templates with content substituted
-4. Outputs both prompts for use with github-ai-actions
+4. Writes both prompts as JSON for use with github-ai-actions
 """
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 from string import Template
+
+from prompt_utils import write_prompt_file
 
 
 def read_text(path: Path) -> str:
@@ -181,14 +184,19 @@ Task:
         # Note: {{PLAN}} is left as-is for github-ai-actions to replace when enable_plan: 'true'
     )
     
-    # Output prompts (plan first, then implementation, separated by a marker)
-    # We'll use a special marker that we can split on
-    print("===PLAN_PROMPT_START===")
-    print(plan_prompt)
-    print("===PLAN_PROMPT_END===")
-    print("===IMPL_PROMPT_START===")
-    print(impl_prompt)
-    print("===IMPL_PROMPT_END===")
+    # Write prompts to separate files
+    plan_output_file = Path(os.getenv("PLAN_PROMPT_OUTPUT_FILE", "plan_prompt.txt"))
+    impl_output_file = Path(os.getenv("IMPL_PROMPT_OUTPUT_FILE", "impl_prompt.txt"))
+    
+    try:
+        write_prompt_file(plan_output_file, plan_prompt)
+        write_prompt_file(impl_output_file, impl_prompt)
+        # Log success to stderr (stdout is reserved for status messages)
+        print(f"Plan prompt written to {plan_output_file}", file=sys.stderr)
+        print(f"Implementation prompt written to {impl_output_file}", file=sys.stderr)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
