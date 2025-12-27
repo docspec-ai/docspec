@@ -107,63 +107,78 @@ runs:
       id: prepare_prompts
       shell: bash
       run: |
-        # Find the repository root by walking up from action_path
+        # Find the script in the action repository
         # github.action_path points to .github/actions/docspec-generate in the checked-out action repo
         # We need to go up 3 levels: docspec-generate -> actions -> .github -> repo root
         ACTION_PATH="${{ github.action_path }}"
-        REPO_ROOT=$(dirname "$(dirname "$(dirname "$ACTION_PATH")")")
-        SCRIPT_PATH="$REPO_ROOT/.github/scripts/prepare-docspec-generate-prompts.py"
+        ACTION_REPO_ROOT=$(dirname "$(dirname "$(dirname "$ACTION_PATH")")")
+        SCRIPT_PATH="$ACTION_REPO_ROOT/.github/scripts/prepare-docspec-generate-prompts.py"
         
         if [ ! -f "$SCRIPT_PATH" ]; then
           echo "Error: Script not found at $SCRIPT_PATH"
           echo "Action path: $ACTION_PATH"
-          echo "Repo root: $REPO_ROOT"
+          echo "Action repo root: $ACTION_REPO_ROOT"
           exit 1
         fi
         
-        # Run script - it writes to plan_prompt.txt and impl_prompt.txt
-        python3 "$SCRIPT_PATH" 2>&1
+        # Use GITHUB_WORKSPACE as the repository where the workflow runs
+        # This is where we'll run the script and write the prompt files
+        REPO_ROOT="$GITHUB_WORKSPACE"
+        PLAN_PROMPT_FILE="$REPO_ROOT/plan_prompt.txt"
+        IMPL_PROMPT_FILE="$REPO_ROOT/impl_prompt.txt"
+        
+        # Add the scripts directory to PYTHONPATH so prompt_utils can be imported
+        export PYTHONPATH="$ACTION_REPO_ROOT/.github/scripts:$PYTHONPATH"
+        
+        # Run script from the user's repository root so it can access their files
+        # The script will write the prompt files to the user's repository
+        cd "$REPO_ROOT"
+        SCRIPT_OUTPUT=$(PLAN_PROMPT_OUTPUT_FILE="$PLAN_PROMPT_FILE" IMPL_PROMPT_OUTPUT_FILE="$IMPL_PROMPT_FILE" python3 "$SCRIPT_PATH" 2>&1)
         SCRIPT_EXIT_CODE=$?
         
         # Check if script failed
         if [ $SCRIPT_EXIT_CODE -ne 0 ]; then
           echo "Error: Script failed with exit code $SCRIPT_EXIT_CODE"
+          echo "Output: $SCRIPT_OUTPUT"
           exit 1
         fi
         
         # Check if prompt files exist
-        if [ ! -f plan_prompt.txt ] || [ ! -s plan_prompt.txt ]; then
-          echo "Error: Plan prompt file not found or empty"
+        if [ ! -f "$PLAN_PROMPT_FILE" ] || [ ! -s "$PLAN_PROMPT_FILE" ]; then
+          echo "Error: Plan prompt file not found or empty at $PLAN_PROMPT_FILE"
+          echo "Script output: $SCRIPT_OUTPUT"
           exit 1
         fi
         
-        if [ ! -f impl_prompt.txt ] || [ ! -s impl_prompt.txt ]; then
-          echo "Error: Implementation prompt file not found or empty"
+        if [ ! -f "$IMPL_PROMPT_FILE" ] || [ ! -s "$IMPL_PROMPT_FILE" ]; then
+          echo "Error: Implementation prompt file not found or empty at $IMPL_PROMPT_FILE"
+          echo "Script output: $SCRIPT_OUTPUT"
           exit 1
         fi
         
         # Verify prompts have meaningful content (not just whitespace)
-        if [ -z "$(cat plan_prompt.txt | tr -d '[:space:]')" ]; then
+        if [ -z "$(cat "$PLAN_PROMPT_FILE" | tr -d '[:space:]')" ]; then
           echo "Error: Plan prompt is empty or contains only whitespace"
           exit 1
         fi
         
-        if [ -z "$(cat impl_prompt.txt | tr -d '[:space:]')" ]; then
+        if [ -z "$(cat "$IMPL_PROMPT_FILE" | tr -d '[:space:]')" ]; then
           echo "Error: Implementation prompt is empty or contains only whitespace"
           exit 1
         fi
         
         # Output as multiline strings
-        PLAN_DELIMITER="DOCSPEC_PLAN_EOF_$(date +%s)_$$"
-        IMPL_DELIMITER="DOCSPEC_IMPL_EOF_$(date +%s)_$$"
+        # Use unique delimiters that are unlikely to appear in the prompt content
+        PLAN_DELIMITER="DOCSPEC_PLAN_EOF_$(date +%s)_$$_$RANDOM"
+        IMPL_DELIMITER="DOCSPEC_IMPL_EOF_$(date +%s)_$$_$RANDOM"
         {
           echo "plan_prompt<<$PLAN_DELIMITER"
-          cat plan_prompt.txt
+          cat "$PLAN_PROMPT_FILE"
           echo "$PLAN_DELIMITER"
         } >> $GITHUB_OUTPUT
         {
           echo "impl_prompt<<$IMPL_DELIMITER"
-          cat impl_prompt.txt
+          cat "$IMPL_PROMPT_FILE"
           echo "$IMPL_DELIMITER"
         } >> $GITHUB_OUTPUT
       env:
