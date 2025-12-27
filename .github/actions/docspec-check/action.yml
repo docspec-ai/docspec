@@ -156,17 +156,15 @@ runs:
       id: prepare_prompt
       shell: bash
       run: |
-        # Find the repository root by walking up from action_path
-        # github.action_path points to .github/actions/docspec-check in the checked-out action repo
-        # We need to go up 3 levels: docspec-check -> actions -> .github -> repo root
-        ACTION_PATH="${{ github.action_path }}"
-        REPO_ROOT=$(dirname "$(dirname "$(dirname "$ACTION_PATH")")")
+        # Use GITHUB_WORKSPACE which points to the repository where the workflow runs
+        # This is the actual repo being checked, not the action repository
+        REPO_ROOT="$GITHUB_WORKSPACE"
         SCRIPT_PATH="$REPO_ROOT/.github/scripts/prepare-docspec-check-prompt.py"
         
         if [ ! -f "$SCRIPT_PATH" ]; then
           echo "Error: Script not found at $SCRIPT_PATH"
-          echo "Action path: $ACTION_PATH"
-          echo "Repo root: $REPO_ROOT"
+          echo "Repository workspace: $REPO_ROOT"
+          echo "Action path: ${{ github.action_path }}"
           exit 1
         fi
         
