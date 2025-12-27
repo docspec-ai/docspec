@@ -2,6 +2,7 @@
 Tests for prepare-docspec-check-prompt.py
 """
 
+import importlib
 import importlib.util
 import os
 import subprocess
@@ -11,8 +12,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Add parent directory to Python path so prompt_utils can be imported
+scripts_dir = Path(__file__).parent.parent
+if str(scripts_dir) not in sys.path:
+    sys.path.insert(0, str(scripts_dir))
+
 # Load the script as a module
-script_path = Path(__file__).parent.parent / "prepare-docspec-check-prompt.py"
+script_path = scripts_dir / "prepare-docspec-check-prompt.py"
 spec = importlib.util.spec_from_file_location("check_script", script_path)
 check_script = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(check_script)
@@ -191,9 +197,8 @@ def test_multiple_docspecs(
     assert "docs/API.docspec.md" in prompt_content
 
 
-@patch.object(check_script, 'sh')
 def test_max_docspecs_limit(
-    mock_sh, temp_dir, repo_root, mock_env_vars, change_working_dir,
+    temp_dir, repo_root, mock_env_vars, change_working_dir,
     create_docspec_file, create_markdown_file, sample_docspec_content, sample_markdown_content
 ):
     """Test that MAX_DOCSPECS limit is respected."""
@@ -204,8 +209,9 @@ def test_max_docspecs_limit(
         create_markdown_file(f"docspec{i}.md", sample_markdown_content)
     
     changed_files = "\n".join([f"docspec{i}.docspec.md" for i in range(15)])
-    mock_git_sh(mock_sh, changed_files=changed_files, diff_content="diff content")
     
+    # Set environment variable BEFORE re-executing the module
+    # This ensures MAX_DOCSPECS is read correctly at module load time
     mock_env_vars(
         BASE_SHA="abc123",
         MERGE_SHA="def456",
@@ -213,11 +219,54 @@ def test_max_docspecs_limit(
         PROMPT_OUTPUT_FILE=str(repo_root / "prompt.txt"),
     )
     
-    check_script.main()
+    # Re-execute the module loader to re-evaluate MAX_DOCSPECS with the new env var
+    # This re-runs all module-level code including MAX_DOCSPECS = int(os.getenv(...))
+    spec.loader.exec_module(check_script)
+    
+    # Patch 'sh' after re-execution with the mock git commands
+    with patch.object(check_script, 'sh') as mock_sh:
+        mock_git_sh(mock_sh, changed_files=changed_files, diff_content="diff content")
+        check_script.main()
     
     prompt_content = (repo_root / "prompt.txt").read_text()
     docspec_count = prompt_content.count("## Docspec:")
     assert docspec_count == 10
+
+
+def test_max_docspecs_limit_different_value(
+    temp_dir, repo_root, mock_env_vars, change_working_dir,
+    create_docspec_file, create_markdown_file, sample_docspec_content, sample_markdown_content
+):
+    """Test that MAX_DOCSPECS limit is respected with a different value (proves the fix works)."""
+    change_working_dir(repo_root)
+    
+    for i in range(15):
+        create_docspec_file(f"docspec{i}.docspec.md", sample_docspec_content)
+        create_markdown_file(f"docspec{i}.md", sample_markdown_content)
+    
+    changed_files = "\n".join([f"docspec{i}.docspec.md" for i in range(15)])
+    
+    # Set environment variable to a different value (5 instead of default 10)
+    # This test would fail with the old buggy implementation
+    mock_env_vars(
+        BASE_SHA="abc123",
+        MERGE_SHA="def456",
+        MAX_DOCSPECS="5",
+        PROMPT_OUTPUT_FILE=str(repo_root / "prompt.txt"),
+    )
+    
+    # Re-execute the module loader to re-evaluate MAX_DOCSPECS with the new env var
+    # This re-runs all module-level code including MAX_DOCSPECS = int(os.getenv(...))
+    spec.loader.exec_module(check_script)
+    
+    # Patch 'sh' after re-execution with the mock git commands
+    with patch.object(check_script, 'sh') as mock_sh:
+        mock_git_sh(mock_sh, changed_files=changed_files, diff_content="diff content")
+        check_script.main()
+    
+    prompt_content = (repo_root / "prompt.txt").read_text()
+    docspec_count = prompt_content.count("## Docspec:")
+    assert docspec_count == 5
 
 
 def test_missing_environment_variables(temp_dir, repo_root, change_working_dir):
