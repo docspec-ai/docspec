@@ -5,6 +5,10 @@ inputs:
   markdown_file:
     description: 'Path to markdown file (e.g., README.md)'
     required: true
+  overwrite:
+    description: 'If true, overwrite existing docspec file. If false and docspec exists, action will fail.'
+    required: false
+    default: 'false'
   anthropic_api_key:
     description: 'Anthropic API key for Claude API access'
     required: true
@@ -112,6 +116,7 @@ runs:
         } >> $GITHUB_OUTPUT
       env:
         MARKDOWN_FILE: ${{ inputs.markdown_file }}
+        OVERWRITE_DOCSPEC: ${{ inputs.overwrite }}
 
     - name: Get default branch
       id: default_branch
