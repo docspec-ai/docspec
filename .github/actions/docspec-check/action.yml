@@ -2,12 +2,14 @@ name: 'Docspec Check'
 description: 'Automatically sync markdown files based on *.docspec.md files after PR merges'
 
 inputs:
+  # Required inputs
   anthropic_api_key:
     description: 'Anthropic API key for Claude API access'
     required: true
   github_token:
     description: 'GitHub token for creating PRs (use secrets.GITHUB_TOKEN)'
     required: true
+  # PR context inputs
   pr_number:
     description: 'PR number that was merged. If not provided, will be extracted from event context.'
     required: false
@@ -20,6 +22,7 @@ inputs:
   base_ref:
     description: 'Base branch name (e.g., main). If not provided, will be extracted from event context.'
     required: false
+  # Docspec-specific inputs
   max_docspecs:
     description: 'Maximum number of docspec files to process per merge'
     required: false
@@ -28,6 +31,71 @@ inputs:
     description: 'Maximum characters in PR diff before truncation'
     required: false
     default: '120000'
+  # Provider selection
+  provider:
+    description: "AI provider to use: 'claude' or 'codex'"
+    required: false
+    default: 'claude'
+  # Claude-specific inputs
+  claude_code_oauth_token:
+    description: 'Claude Code OAuth token (alternative to anthropic_api_key)'
+    required: false
+  use_bedrock:
+    description: 'Use Amazon Bedrock instead of direct Anthropic API'
+    required: false
+    default: 'false'
+  use_vertex:
+    description: 'Use Google Vertex AI instead of direct Anthropic API'
+    required: false
+    default: 'false'
+  use_foundry:
+    description: 'Use Microsoft Foundry instead of direct Anthropic API'
+    required: false
+    default: 'false'
+  claude_args:
+    description: 'Additional arguments to pass to Claude Code CLI (e.g., "--max-turns 5 --model claude-3-5-sonnet-20241022")'
+    required: false
+    default: ''
+  # Codex-specific inputs
+  openai_api_key:
+    description: 'OpenAI API key for Codex'
+    required: false
+  responses_api_endpoint:
+    description: 'Optional Responses API endpoint override for Codex (e.g., for Azure OpenAI)'
+    required: false
+  codex_args:
+    description: 'Extra arguments forwarded to codex exec (JSON array or shell-style string)'
+    required: false
+    default: ''
+  codex_sandbox:
+    description: 'Sandbox mode for Codex: workspace-write, read-only, or danger-full-access'
+    required: false
+    default: 'workspace-write'
+  codex_safety_strategy:
+    description: 'Safety strategy for Codex: drop-sudo, unprivileged-user, read-only, or unsafe'
+    required: false
+    default: 'drop-sudo'
+  # Plan phase inputs
+  enable_plan:
+    description: 'Enable plan phase before implementation (runs LLM twice: once for planning, once for implementation)'
+    required: false
+    default: 'false'
+  plan_prompt_template:
+    description: 'Optional prompt template for the plan phase. If not provided, uses a default plan prompt.'
+    required: false
+  plan_model:
+    description: 'Optional model to use for plan phase (overrides default model)'
+    required: false
+  # PR customization inputs
+  branch_prefix:
+    description: 'Prefix for generated branches'
+    required: false
+  pr_title_template:
+    description: 'Template for created PR title (supports variable placeholders)'
+    required: false
+  pr_body_template:
+    description: 'Template for created PR body (supports variable placeholders)'
+    required: false
 
 runs:
   using: 'composite'
@@ -151,17 +219,69 @@ runs:
         MAX_DIFF_CHARS: ${{ inputs.max_diff_chars }}
         PROMPT_OUTPUT_FILE: prompt.txt
 
+    - name: Prepare default values
+      id: defaults
+      if: steps.prepare_prompt.outputs.has_docspecs == 'true'
+      shell: bash
+      run: |
+        # Set default branch_prefix if not provided
+        BRANCH_PREFIX="${{ inputs.branch_prefix }}"
+        if [ -z "$BRANCH_PREFIX" ]; then
+          BRANCH_PREFIX="docs/docspec-update-pr-${{ steps.pr_details.outputs.pr_number }}-"
+        fi
+        # Set default pr_title_template if not provided
+        PR_TITLE="${{ inputs.pr_title_template }}"
+        if [ -z "$PR_TITLE" ]; then
+          PR_TITLE="Docs: update from docspec after #{{PR_NUMBER}}"
+        fi
+        # Set default pr_body_template if not provided
+        PR_BODY="${{ inputs.pr_body_template }}"
+        if [ -z "$PR_BODY" ]; then
+          PR_BODY="Automated doc updates based on *.docspec.md after merge of #{{PR_NUMBER}}."
+        fi
+        DELIMITER="BRANCH_PREFIX_EOF_$(date +%s)_$$"
+        {
+          echo "branch_prefix<<$DELIMITER"
+          echo "$BRANCH_PREFIX"
+          echo "$DELIMITER"
+        } >> $GITHUB_OUTPUT
+        DELIMITER="PR_TITLE_EOF_$(date +%s)_$$"
+        {
+          echo "pr_title_template<<$DELIMITER"
+          echo "$PR_TITLE"
+          echo "$DELIMITER"
+        } >> $GITHUB_OUTPUT
+        DELIMITER="PR_BODY_EOF_$(date +%s)_$$"
+        {
+          echo "pr_body_template<<$DELIMITER"
+          echo "$PR_BODY"
+          echo "$DELIMITER"
+        } >> $GITHUB_OUTPUT
+
     - name: Run AI automation for docspec check
       if: steps.prepare_prompt.outputs.has_docspecs == 'true'
       uses: docspec-ai/github-ai-actions@main
       with:
-        provider: claude
+        provider: ${{ inputs.provider }}
         prompt_template: ${{ steps.prepare_prompt.outputs.prompt }}
         pr_number: ${{ steps.pr_details.outputs.pr_number }}
         anthropic_api_key: ${{ inputs.anthropic_api_key }}
+        claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
+        use_bedrock: ${{ inputs.use_bedrock }}
+        use_vertex: ${{ inputs.use_vertex }}
+        use_foundry: ${{ inputs.use_foundry }}
+        claude_args: ${{ inputs.claude_args }}
+        openai_api_key: ${{ inputs.openai_api_key }}
+        responses_api_endpoint: ${{ inputs.responses_api_endpoint }}
+        codex_args: ${{ inputs.codex_args }}
+        codex_sandbox: ${{ inputs.codex_sandbox }}
+        codex_safety_strategy: ${{ inputs.codex_safety_strategy }}
         github_token: ${{ inputs.github_token }}
-        branch_prefix: "docs/docspec-update-pr-${{ steps.pr_details.outputs.pr_number }}-"
-        pr_title_template: "Docs: update from docspec after #{{PR_NUMBER}}"
-        pr_body_template: "Automated doc updates based on *.docspec.md after merge of #{{PR_NUMBER}}."
+        branch_prefix: ${{ steps.defaults.outputs.branch_prefix }}
+        pr_title_template: ${{ steps.defaults.outputs.pr_title_template }}
+        pr_body_template: ${{ steps.defaults.outputs.pr_body_template }}
         base_branch: ${{ steps.pr_details.outputs.base_ref }}
+        enable_plan: ${{ inputs.enable_plan }}
+        plan_prompt_template: ${{ inputs.plan_prompt_template }}
+        plan_model: ${{ inputs.plan_model }}
 
