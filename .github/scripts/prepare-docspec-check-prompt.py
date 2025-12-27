@@ -6,7 +6,7 @@ This script:
 1. Discovers relevant *.docspec.md files based on PR changes
 2. Reads each docspec and its target markdown file
 3. Prepares a single comprehensive prompt that includes all docspecs
-4. Outputs the prompt to stdout for use with github-ai-actions
+4. Writes the prompt to a file for use with github-ai-actions
 """
 
 import os
@@ -15,6 +15,8 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import List, Optional
+
+from prompt_utils import write_prompt_file
 
 RE_DOCSPEC = re.compile(r".*\.docspec\.md$")
 MAX_DOCSPECS = int(os.getenv("MAX_DOCSPECS", "10"))
@@ -173,9 +175,17 @@ def main() -> None:
         "6. Do not provide any text output - files are modified directly using tools",
     ])
     
-    # Output the prompt
+    # Build and write the prompt to file
     prompt = "\n".join(prompt_parts)
-    print(prompt)
+    output_file = Path(os.getenv("PROMPT_OUTPUT_FILE", "prompt.txt"))
+    
+    try:
+        write_prompt_file(output_file, prompt)
+        # Log success to stderr (stdout is reserved for status messages)
+        print(f"Prompt written to {output_file}", file=sys.stderr)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -214,13 +214,41 @@ This action automatically updates markdown files based on `*.docspec.md` files a
 
 #### Configuration Options
 
-The action supports optional inputs:
+The action supports all options from [`github-ai-actions`](https://github.com/docspec-ai/github-ai-actions), plus docspec-specific options:
 
+**Docspec-specific options:**
 - `max_docspecs` (default: `10`) - Maximum number of docspec files to process per merge
 - `max_diff_chars` (default: `120000`) - Maximum characters in PR diff before truncation
-- `anthropic_model` (default: `claude-sonnet-4-5`) - Anthropic model to use (short alias for the Claude Sonnet 4.5 model)
 
-The action accepts optional inputs like `max_docspecs` and `max_diff_chars` - see [`.github/actions/docspec-check/action.yml`](.github/actions/docspec-check/action.yml) for all available configuration options.
+**Provider selection:**
+- `provider` (default: `claude`) - AI provider to use: `'claude'` or `'codex'`
+
+**Claude-specific options:**
+- `claude_args` - Additional arguments to pass to Claude Code CLI (e.g., `"--max-turns 5 --model claude-3-5-sonnet-20241022"`). To specify a model, use `--model` flag: `"--model claude-sonnet-4-5"` or `"--model claude-3-5-sonnet-20241022"`
+- `claude_code_oauth_token` - Claude Code OAuth token (alternative to `anthropic_api_key`)
+- `use_bedrock` (default: `false`) - Use Amazon Bedrock instead of direct Anthropic API
+- `use_vertex` (default: `false`) - Use Google Vertex AI instead of direct Anthropic API
+- `use_foundry` (default: `false`) - Use Microsoft Foundry instead of direct Anthropic API
+
+**Codex-specific options:**
+- `openai_api_key` - OpenAI API key for Codex
+- `responses_api_endpoint` - Optional Responses API endpoint override (e.g., for Azure OpenAI)
+- `codex_args` - Extra arguments forwarded to `codex exec` (JSON array or shell-style string)
+- `codex_sandbox` (default: `workspace-write`) - Sandbox mode: `workspace-write`, `read-only`, or `danger-full-access`
+- `codex_safety_strategy` (default: `drop-sudo`) - Safety strategy: `drop-sudo`, `unprivileged-user`, `read-only`, or `unsafe`
+
+**Plan phase options:**
+- `enable_plan` (default: `false` for docspec-check, `true` for docspec-generate) - Enable plan phase before implementation
+- `plan_prompt_template` - Optional prompt template for the plan phase
+- `plan_model` - Optional model to use for plan phase (overrides default model)
+
+**PR customization options:**
+- `branch_prefix` - Prefix for generated branches (defaults provided by action)
+- `pr_title_template` - Template for created PR title (supports variable placeholders)
+- `pr_body_template` - Template for created PR body (supports variable placeholders)
+- `base_branch` - Base branch to create new branch from (defaults to repository default branch)
+
+For complete details, see [`.github/actions/docspec-check/action.yml`](.github/actions/docspec-check/action.yml) and [`.github/actions/docspec-generate/action.yml`](.github/actions/docspec-generate/action.yml).
 
 #### Safety Features
 
@@ -274,6 +302,44 @@ Before the discovery phase begins, the workflow:
 4. The workflow will generate/update the corresponding docspec file and create a PR with improvements
 
 **Note**: This workflow requires the `ANTHROPIC_API_KEY` secret to be configured.
+
+#### Configuration Options
+
+The `docspec-generate` action supports all options from [`github-ai-actions`](https://github.com/docspec-ai/github-ai-actions), plus docspec-specific options:
+
+**Docspec-specific options:**
+- `markdown_file` (required) - Path to markdown file (e.g., `README.md`)
+- `overwrite` (default: `false`) - If true, overwrite existing docspec file. If false and docspec exists, action will fail
+
+**Provider selection:**
+- `provider` (default: `claude`) - AI provider to use: `'claude'` or `'codex'`
+
+**Claude-specific options:**
+- `claude_args` - Additional arguments to pass to Claude Code CLI (e.g., `"--max-turns 5 --model claude-3-5-sonnet-20241022"`). To specify a model, use `--model` flag: `"--model claude-sonnet-4-5"` or `"--model claude-3-5-sonnet-20241022"`
+- `claude_code_oauth_token` - Claude Code OAuth token (alternative to `anthropic_api_key`)
+- `use_bedrock` (default: `false`) - Use Amazon Bedrock instead of direct Anthropic API
+- `use_vertex` (default: `false`) - Use Google Vertex AI instead of direct Anthropic API
+- `use_foundry` (default: `false`) - Use Microsoft Foundry instead of direct Anthropic API
+
+**Codex-specific options:**
+- `openai_api_key` - OpenAI API key for Codex
+- `responses_api_endpoint` - Optional Responses API endpoint override (e.g., for Azure OpenAI)
+- `codex_args` - Extra arguments forwarded to `codex exec` (JSON array or shell-style string)
+- `codex_sandbox` (default: `workspace-write`) - Sandbox mode: `workspace-write`, `read-only`, or `danger-full-access`
+- `codex_safety_strategy` (default: `drop-sudo`) - Safety strategy: `drop-sudo`, `unprivileged-user`, `read-only`, or `unsafe`
+
+**Plan phase options:**
+- `enable_plan` (default: `true`) - Enable plan phase before implementation (enabled by default for docspec-generate)
+- `plan_prompt_template` - Optional prompt template for the plan phase
+- `plan_model` - Optional model to use for plan phase (overrides default model)
+
+**PR customization options:**
+- `branch_prefix` - Prefix for generated branches (default: `"docs/generate-"`)
+- `pr_title_template` - Template for created PR title (supports variable placeholders, default provided by action)
+- `pr_body_template` - Template for created PR body (supports variable placeholders, default provided by action)
+- `base_branch` - Base branch to create new branch from (defaults to repository default branch)
+
+For complete details, see [`.github/actions/docspec-generate/action.yml`](.github/actions/docspec-generate/action.yml).
 
 ## Development
 
