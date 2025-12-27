@@ -156,23 +156,30 @@ runs:
       id: prepare_prompt
       shell: bash
       run: |
-        # Use GITHUB_WORKSPACE which points to the repository where the workflow runs
-        # This is the actual repo being checked, not the action repository
-        REPO_ROOT="$GITHUB_WORKSPACE"
-        SCRIPT_PATH="$REPO_ROOT/.github/scripts/prepare-docspec-check-prompt.py"
+        # Find the script in the action repository
+        # github.action_path points to .github/actions/docspec-check in the checked-out action repo
+        # We need to go up 3 levels: docspec-check -> actions -> .github -> repo root
+        ACTION_PATH="${{ github.action_path }}"
+        ACTION_REPO_ROOT=$(dirname "$(dirname "$(dirname "$ACTION_PATH")")")
+        SCRIPT_PATH="$ACTION_REPO_ROOT/.github/scripts/prepare-docspec-check-prompt.py"
         
         if [ ! -f "$SCRIPT_PATH" ]; then
           echo "Error: Script not found at $SCRIPT_PATH"
-          echo "Repository workspace: $REPO_ROOT"
-          echo "Action path: ${{ github.action_path }}"
+          echo "Action path: $ACTION_PATH"
+          echo "Action repo root: $ACTION_REPO_ROOT"
           exit 1
         fi
         
-        # Use absolute path for prompt file to ensure it's written to the expected location
+        # Use GITHUB_WORKSPACE as the repository where the workflow runs
+        # This is where we'll run the script and write the prompt file
+        REPO_ROOT="$GITHUB_WORKSPACE"
         PROMPT_FILE="$REPO_ROOT/prompt.txt"
         
-        # Run script - it writes to prompt.txt and prints status to stderr
-        # Change to repo root to ensure script runs from correct directory
+        # Add the scripts directory to PYTHONPATH so prompt_utils can be imported
+        export PYTHONPATH="$ACTION_REPO_ROOT/.github/scripts:$PYTHONPATH"
+        
+        # Run script from the user's repository root so it can access their git history
+        # The script will write the prompt file to the user's repository
         cd "$REPO_ROOT"
         SCRIPT_OUTPUT=$(PROMPT_OUTPUT_FILE="$PROMPT_FILE" python3 "$SCRIPT_PATH" 2>&1)
         SCRIPT_EXIT_CODE=$?
