@@ -39,6 +39,8 @@ def main() -> None:
     if not markdown_file:
         raise RuntimeError("MARKDOWN_FILE environment variable is not set")
     
+    overwrite = os.environ.get("OVERWRITE_DOCSPEC", "false").lower() == "true"
+    
     repo_root = Path(".").resolve()
     md_path = repo_root / markdown_file
     
@@ -48,8 +50,21 @@ def main() -> None:
     # Determine docspec path (Option B convention: README.md -> README.docspec.md)
     docspec_path = md_path.with_suffix(".docspec.md")
     
+    # Check if docspec exists
+    docspec_exists = docspec_path.exists()
+    
+    if docspec_exists and not overwrite:
+        raise RuntimeError(
+            f"Docspec file already exists: {docspec_path}\n"
+            "To overwrite it, set the 'overwrite' input to 'true'."
+        )
+    
     # Generate docspec if it doesn't exist or overwrite if it does
-    print(f"Generating docspec file: {docspec_path}")
+    if docspec_exists:
+        print(f"Overwriting existing docspec file: {docspec_path}")
+    else:
+        print(f"Generating new docspec file: {docspec_path}")
+    
     generate_cmd = ["docspec", "generate", str(docspec_path)]
     
     try:
@@ -60,7 +75,10 @@ def main() -> None:
             capture_output=True,
             cwd=str(repo_root),
         )
-        print(f"✅ Generated docspec file: {docspec_path}")
+        if docspec_exists:
+            print(f"✅ Overwritten docspec file: {docspec_path}")
+        else:
+            print(f"✅ Generated docspec file: {docspec_path}")
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Failed to generate docspec: {e.stderr or e.stdout}")
     except FileNotFoundError:
