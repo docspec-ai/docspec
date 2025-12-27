@@ -217,12 +217,12 @@ runs:
         fi
         
         # Read the prompt and set as output (multiline)
-        # Use a unique delimiter that's unlikely to appear in the prompt content
         echo "has_docspecs=true" >> $GITHUB_OUTPUT
         DELIMITER="DOCSPEC_PROMPT_EOF_$(date +%s)_$$_$RANDOM"
         {
           echo "prompt<<$DELIMITER"
           cat "$PROMPT_FILE"
+          echo ""
           echo "$DELIMITER"
         } >> $GITHUB_OUTPUT
       env:

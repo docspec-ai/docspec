@@ -168,17 +168,18 @@ runs:
         fi
         
         # Output as multiline strings
-        # Use unique delimiters that are unlikely to appear in the prompt content
         PLAN_DELIMITER="DOCSPEC_PLAN_EOF_$(date +%s)_$$_$RANDOM"
         IMPL_DELIMITER="DOCSPEC_IMPL_EOF_$(date +%s)_$$_$RANDOM"
         {
           echo "plan_prompt<<$PLAN_DELIMITER"
           cat "$PLAN_PROMPT_FILE"
+          echo ""
           echo "$PLAN_DELIMITER"
         } >> $GITHUB_OUTPUT
         {
           echo "impl_prompt<<$IMPL_DELIMITER"
           cat "$IMPL_PROMPT_FILE"
+          echo ""
           echo "$IMPL_DELIMITER"
         } >> $GITHUB_OUTPUT
       env:
