@@ -42,6 +42,7 @@ jobs:
           DELIM="DOCSPEC_EOF_$(date +%s)_$$"
           echo "content<<$DELIM" >> $GITHUB_OUTPUT
           cat "$PROMPT_FILE" >> $GITHUB_OUTPUT
+          echo >> $GITHUB_OUTPUT
           echo "$DELIM" >> $GITHUB_OUTPUT
 
       - name: Display full prompt
