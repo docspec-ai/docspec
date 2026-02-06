@@ -1,15 +1,8 @@
-name: 'Docspec Check'
-description: 'Automatically sync markdown files based on *.docspec.md files after PR merges'
+name: 'Docspec Changed'
+description: 'Prepare a prompt file to sync markdown with docspecs after PR merges (no LLM; feed prompt to your own LLM CLI)'
 
 inputs:
-  # Required inputs
-  anthropic_api_key:
-    description: 'Anthropic API key for Claude API access'
-    required: true
-  github_token:
-    description: 'GitHub token for creating PRs (use secrets.GITHUB_TOKEN)'
-    required: true
-  # PR context inputs
+  # PR context (for git diff; optional if provided by workflow)
   pr_number:
     description: 'PR number that was merged. If not provided, will be extracted from event context.'
     required: false
@@ -22,80 +15,30 @@ inputs:
   base_ref:
     description: 'Base branch name (e.g., main). If not provided, will be extracted from event context.'
     required: false
-  # Docspec-specific inputs
+  # Alternative: provide changed files directly (comma- or newline-separated)
+  changed_files:
+    description: 'Optional list of changed file paths (comma- or newline-separated). If set, overrides base_sha/merge_sha for discovery.'
+    required: false
   max_docspecs:
-    description: 'Maximum number of docspec files to process per merge'
+    description: 'Maximum number of docspec files to include in the prompt'
     required: false
     default: '10'
   max_diff_chars:
-    description: 'Maximum characters in PR diff before truncation'
+    description: 'Maximum characters of PR diff to include'
     required: false
     default: '120000'
-  # Provider selection
-  provider:
-    description: "AI provider to use: 'claude' or 'codex'"
+  output_file:
+    description: 'Path to write the prompt file (relative to workspace)'
     required: false
-    default: 'claude'
-  # Claude-specific inputs
-  claude_code_oauth_token:
-    description: 'Claude Code OAuth token (alternative to anthropic_api_key)'
-    required: false
-  use_bedrock:
-    description: 'Use Amazon Bedrock instead of direct Anthropic API'
-    required: false
-    default: 'false'
-  use_vertex:
-    description: 'Use Google Vertex AI instead of direct Anthropic API'
-    required: false
-    default: 'false'
-  use_foundry:
-    description: 'Use Microsoft Foundry instead of direct Anthropic API'
-    required: false
-    default: 'false'
-  claude_args:
-    description: 'Additional arguments to pass to Claude Code CLI (e.g., "--max-turns 5 --model claude-3-5-sonnet-20241022")'
-    required: false
-    default: ''
-  # Codex-specific inputs
-  openai_api_key:
-    description: 'OpenAI API key for Codex'
-    required: false
-  responses_api_endpoint:
-    description: 'Optional Responses API endpoint override for Codex (e.g., for Azure OpenAI)'
-    required: false
-  codex_args:
-    description: 'Extra arguments forwarded to codex exec (JSON array or shell-style string)'
-    required: false
-    default: ''
-  codex_sandbox:
-    description: 'Sandbox mode for Codex: workspace-write, read-only, or danger-full-access'
-    required: false
-    default: 'workspace-write'
-  codex_safety_strategy:
-    description: 'Safety strategy for Codex: drop-sudo, unprivileged-user, read-only, or unsafe'
-    required: false
-    default: 'drop-sudo'
-  # Plan phase inputs
-  enable_plan:
-    description: 'Enable plan phase before implementation (runs LLM twice: once for planning, once for implementation)'
-    required: false
-    default: 'false'
-  plan_prompt_template:
-    description: 'Optional prompt template for the plan phase. If not provided, uses a default plan prompt.'
-    required: false
-  plan_model:
-    description: 'Optional model to use for plan phase (overrides default model)'
-    required: false
-  # PR customization inputs
-  branch_prefix:
-    description: 'Prefix for generated branches'
-    required: false
-  pr_title_template:
-    description: 'Template for created PR title (supports variable placeholders)'
-    required: false
-  pr_body_template:
-    description: 'Template for created PR body (supports variable placeholders)'
-    required: false
+    default: 'prompt.txt'
+
+outputs:
+  prompt_file:
+    description: 'Absolute path to the generated prompt file (empty if no docspecs found)'
+    value: ${{ steps.prepare.outputs.prompt_file }}
+  has_prompt:
+    description: 'Whether a prompt was generated (true/false)'
+    value: ${{ steps.prepare.outputs.has_prompt }}
 
 runs:
   using: 'composite'
@@ -104,196 +47,59 @@ runs:
       id: pr_details
       shell: bash
       run: |
-        if [ -n "${{ inputs.pr_number }}" ] && [ -n "${{ inputs.base_sha }}" ] && [ -n "${{ inputs.merge_sha }}" ]; then
-          # All details provided, use them
-          echo "pr_number=${{ inputs.pr_number }}" >> $GITHUB_OUTPUT
+        if [ -n "${{ inputs.base_sha }}" ] && [ -n "${{ inputs.merge_sha }}" ]; then
           echo "base_sha=${{ inputs.base_sha }}" >> $GITHUB_OUTPUT
           echo "merge_sha=${{ inputs.merge_sha }}" >> $GITHUB_OUTPUT
-          # If base_ref not provided, extract it from PR or event context
-          if [ -n "${{ inputs.base_ref }}" ]; then
-            echo "base_ref=${{ inputs.base_ref }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" == "pull_request" ]; then
-            # Use PR event data if available
-            echo "base_ref=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
-          else
-            # Fetch from PR API using pr_number
-            PR_DATA=$(gh pr view "${{ inputs.pr_number }}" --json baseRefName)
-            echo "base_ref=$(echo "$PR_DATA" | jq -r '.baseRefName')" >> $GITHUB_OUTPUT
-          fi
-        elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-          # Manual trigger: fetch PR details from API
-          # Try inputs.pr_number first, then github.event.inputs.pr_number
+          echo "base_ref=${{ inputs.base_ref }}" >> $GITHUB_OUTPUT
+        elif [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.pr_number }}" ]; then
           PR_NUM="${{ inputs.pr_number }}"
-          if [ -z "$PR_NUM" ] || [ "$PR_NUM" == "" ]; then
-            PR_NUM="${{ github.event.inputs.pr_number }}"
-          fi
-          if [ -z "$PR_NUM" ] || [ "$PR_NUM" == "" ]; then
-            echo "Error: pr_number must be provided for workflow_dispatch"
-            exit 1
-          fi
-          PR_DATA=$(gh pr view "$PR_NUM" --json baseRefName,baseRefOid,mergeCommit,headRefOid,number)
+          PR_DATA=$(gh pr view "$PR_NUM" --json baseRefName,baseRefOid,mergeCommit,headRefOid)
           MERGE_SHA=$(echo "$PR_DATA" | jq -r '.mergeCommit.oid // .headRefOid')
-          echo "pr_number=$(echo "$PR_DATA" | jq -r '.number')" >> $GITHUB_OUTPUT
           echo "base_sha=$(echo "$PR_DATA" | jq -r '.baseRefOid')" >> $GITHUB_OUTPUT
           echo "merge_sha=$MERGE_SHA" >> $GITHUB_OUTPUT
           echo "base_ref=$(echo "$PR_DATA" | jq -r '.baseRefName')" >> $GITHUB_OUTPUT
         else
-          # PR merge trigger: use PR event data
-          echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
           echo "base_sha=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
           echo "merge_sha=${{ github.event.pull_request.merge_commit_sha || github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
           echo "base_ref=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
         fi
       env:
-        GH_TOKEN: ${{ inputs.github_token }}
+        GH_TOKEN: ${{ github.token }}
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
       with:
-        python-version: '3.11'
+        node-version: '20'
 
-    - name: Prepare docspec check prompt
-      id: prepare_prompt
+    - name: Install docspec
+      shell: bash
+      run: npm install -g docspec
+
+    - name: Prepare docspec changed prompt
+      id: prepare
       shell: bash
       run: |
-        # Find the script in the action repository
-        # github.action_path points to .github/actions/docspec-check in the checked-out action repo
-        # We need to go up 3 levels: docspec-check -> actions -> .github -> repo root
-        ACTION_PATH="${{ github.action_path }}"
-        ACTION_REPO_ROOT=$(dirname "$(dirname "$(dirname "$ACTION_PATH")")")
-        SCRIPT_PATH="$ACTION_REPO_ROOT/.github/scripts/prepare-docspec-check-prompt.py"
-        
-        if [ ! -f "$SCRIPT_PATH" ]; then
-          echo "Error: Script not found at $SCRIPT_PATH"
-          echo "Action path: $ACTION_PATH"
-          echo "Action repo root: $ACTION_REPO_ROOT"
-          exit 1
-        fi
-        
-        # Use GITHUB_WORKSPACE as the repository where the workflow runs
-        # This is where we'll run the script and write the prompt file
         REPO_ROOT="$GITHUB_WORKSPACE"
-        PROMPT_FILE="$REPO_ROOT/prompt.txt"
-        
-        # Add the scripts directory to PYTHONPATH so prompt_utils can be imported
-        export PYTHONPATH="$ACTION_REPO_ROOT/.github/scripts:$PYTHONPATH"
-        
-        # Run script from the user's repository root so it can access their git history
-        # The script will write the prompt file to the user's repository
+        PROMPT_FILE="$REPO_ROOT/${{ inputs.output_file }}"
         cd "$REPO_ROOT"
-        SCRIPT_OUTPUT=$(PROMPT_OUTPUT_FILE="$PROMPT_FILE" python3 "$SCRIPT_PATH" 2>&1)
-        SCRIPT_EXIT_CODE=$?
-        
-        # Check if script failed
-        if [ $SCRIPT_EXIT_CODE -ne 0 ]; then
-          echo "has_docspecs=false" >> $GITHUB_OUTPUT
-          echo "Error: Script failed with exit code $SCRIPT_EXIT_CODE"
-          echo "Output: $SCRIPT_OUTPUT"
-          exit 1
-        fi
-        
-        # Check if no docspecs were found (script prints to stderr)
-        if echo "$SCRIPT_OUTPUT" | grep -q "No relevant docspec files found"; then
-          echo "has_docspecs=false" >> $GITHUB_OUTPUT
-          echo "No docspec files found, skipping AI automation"
-          exit 0
-        fi
-        
-        # Check if prompt file exists and has content
-        if [ ! -f "$PROMPT_FILE" ] || [ ! -s "$PROMPT_FILE" ]; then
-          echo "has_docspecs=false" >> $GITHUB_OUTPUT
-          echo "Error: Prompt file not found or empty at $PROMPT_FILE"
-          echo "Script output: $SCRIPT_OUTPUT"
-          echo "Current directory: $(pwd)"
-          echo "Files in current directory: $(ls -la)"
-          exit 1
-        fi
-        
-        # Verify prompt has meaningful content (not just whitespace)
-        if [ -z "$(cat "$PROMPT_FILE" | tr -d '[:space:]')" ]; then
-          echo "has_docspecs=false" >> $GITHUB_OUTPUT
-          echo "Error: Prompt is empty or contains only whitespace"
-          exit 1
-        fi
-        
-        # Read the prompt and set as output (multiline)
-        echo "has_docspecs=true" >> $GITHUB_OUTPUT
-        DELIMITER="DOCSPEC_PROMPT_EOF_$(date +%s)_$$_$RANDOM"
-        {
-          echo "prompt<<$DELIMITER"
-          cat "$PROMPT_FILE"
-          echo ""
-          echo "$DELIMITER"
-        } >> $GITHUB_OUTPUT
-      env:
-        BASE_SHA: ${{ steps.pr_details.outputs.base_sha }}
-        MERGE_SHA: ${{ steps.pr_details.outputs.merge_sha }}
-        MAX_DOCSPECS: ${{ inputs.max_docspecs }}
-        MAX_DIFF_CHARS: ${{ inputs.max_diff_chars }}
 
-    - name: Prepare default values
-      id: defaults
-      if: steps.prepare_prompt.outputs.has_docspecs == 'true'
-      shell: bash
-      run: |
-        # Set default branch_prefix if not provided
-        BRANCH_PREFIX="${{ inputs.branch_prefix }}"
-        if [ -z "$BRANCH_PREFIX" ]; then
-          BRANCH_PREFIX="docs/docspec-update-pr-${{ steps.pr_details.outputs.pr_number }}-"
+        if [ -n "${{ inputs.changed_files }}" ]; then
+          CHANGED=$(echo "${{ inputs.changed_files }}" | tr '\n' ',' | sed 's/,,*/,/g' | sed 's/^,//;s/,$//')
+          docspec changed --changed-files "$CHANGED" --output "${{ inputs.output_file }}" \
+            --max-docspecs "${{ inputs.max_docspecs }}" \
+            --max-diff-chars "${{ inputs.max_diff_chars }}" || true
+        else
+          BASE="${{ steps.pr_details.outputs.base_sha }}"
+          MERGE="${{ steps.pr_details.outputs.merge_sha }}"
+          docspec changed --base "$BASE" --merge "$MERGE" --output "${{ inputs.output_file }}" \
+            --max-docspecs "${{ inputs.max_docspecs }}" \
+            --max-diff-chars "${{ inputs.max_diff_chars }}" || true
         fi
-        # Set default pr_title_template if not provided
-        PR_TITLE="${{ inputs.pr_title_template }}"
-        if [ -z "$PR_TITLE" ]; then
-          PR_TITLE="Docs: update from docspec after #{{PR_NUMBER}}"
-        fi
-        # Set default pr_body_template if not provided
-        PR_BODY="${{ inputs.pr_body_template }}"
-        if [ -z "$PR_BODY" ]; then
-          PR_BODY="Automated doc updates based on *.docspec.md after merge of #{{PR_NUMBER}}."
-        fi
-        DELIMITER="BRANCH_PREFIX_EOF_$(date +%s)_$$"
-        {
-          echo "branch_prefix<<$DELIMITER"
-          echo "$BRANCH_PREFIX"
-          echo "$DELIMITER"
-        } >> $GITHUB_OUTPUT
-        DELIMITER="PR_TITLE_EOF_$(date +%s)_$$"
-        {
-          echo "pr_title_template<<$DELIMITER"
-          echo "$PR_TITLE"
-          echo "$DELIMITER"
-        } >> $GITHUB_OUTPUT
-        DELIMITER="PR_BODY_EOF_$(date +%s)_$$"
-        {
-          echo "pr_body_template<<$DELIMITER"
-          echo "$PR_BODY"
-          echo "$DELIMITER"
-        } >> $GITHUB_OUTPUT
 
-    - name: Run AI automation for docspec check
-      if: steps.prepare_prompt.outputs.has_docspecs == 'true'
-      uses: docspec-ai/github-ai-actions@main
-      with:
-        provider: ${{ inputs.provider }}
-        prompt_template: ${{ steps.prepare_prompt.outputs.prompt }}
-        pr_number: ${{ steps.pr_details.outputs.pr_number }}
-        anthropic_api_key: ${{ inputs.anthropic_api_key }}
-        claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
-        use_bedrock: ${{ inputs.use_bedrock }}
-        use_vertex: ${{ inputs.use_vertex }}
-        use_foundry: ${{ inputs.use_foundry }}
-        claude_args: ${{ inputs.claude_args }}
-        openai_api_key: ${{ inputs.openai_api_key }}
-        responses_api_endpoint: ${{ inputs.responses_api_endpoint }}
-        codex_args: ${{ inputs.codex_args }}
-        codex_sandbox: ${{ inputs.codex_sandbox }}
-        codex_safety_strategy: ${{ inputs.codex_safety_strategy }}
-        github_token: ${{ inputs.github_token }}
-        branch_prefix: ${{ steps.defaults.outputs.branch_prefix }}
-        pr_title_template: ${{ steps.defaults.outputs.pr_title_template }}
-        pr_body_template: ${{ steps.defaults.outputs.pr_body_template }}
-        base_branch: ${{ steps.pr_details.outputs.base_ref }}
-        enable_plan: ${{ inputs.enable_plan }}
-        plan_prompt_template: ${{ inputs.plan_prompt_template }}
-        plan_model: ${{ inputs.plan_model }}
-
+        if [ -f "$PROMPT_FILE" ] && [ -s "$PROMPT_FILE" ]; then
+          echo "prompt_file=$PROMPT_FILE" >> $GITHUB_OUTPUT
+          echo "has_prompt=true" >> $GITHUB_OUTPUT
+        else
+          echo "prompt_file=" >> $GITHUB_OUTPUT
+          echo "has_prompt=false" >> $GITHUB_OUTPUT
+        fi
