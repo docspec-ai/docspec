@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+import * as fs from "fs/promises";
 import * as path from "path";
 import { generateDocspec } from "./create";
 import { logger } from "./logger";
 import { markdownToDocspecPath } from "./path-utils";
-import { buildDocspecChangedPrompt } from "./changed";
-import { buildDocspecGeneratePrompts } from "./generate";
+import { buildDocspecReviewPrompt } from "./review";
+import {
+  createBranchCommitAndOpenPR,
+  branchSlugFromMarkdownPath,
+} from "./pr";
 
 const program = new Command();
 
@@ -37,10 +41,11 @@ program
   });
 
 program
-  .command("changed")
+  .command("review")
   .description(
-    "Generate a prompt to sync markdown files with their docspecs based on changed files (for use with an external LLM)"
+    "Generate a prompt to review/sync markdown with docspecs (for use with an external LLM). Use PR context (--base/--merge) or specify markdown file(s) to review."
   )
+  .argument("[markdown_paths...]", "Markdown file(s) to review (e.g. README.md). If omitted, use --base/--merge or --changed-files for PR-based discovery.")
   .option(
     "--changed-files <paths>",
     "Comma-separated list of changed file paths (or omit and use --base/--merge for git diff)"
@@ -50,21 +55,25 @@ program
   .option("--output <file>", "Write prompt to this file", "prompt.txt")
   .option("--max-docspecs <n>", "Max docspecs to include", "10")
   .option("--max-diff-chars <n>", "Max characters of diff to include", "120000")
-  .action(async function (this: { opts: () => Record<string, unknown> }) {
+  .action(async function (this: { opts: () => Record<string, unknown> }, markdownPaths: string[] = []) {
     const opts = program.opts();
     logger.setVerbose(opts.verbose || false);
     const cmdOpts = this.opts();
+    const reviewFiles = markdownPaths.length > 0 ? markdownPaths : undefined;
     const changedFiles = cmdOpts.changedFiles
       ? String(cmdOpts.changedFiles).split(",").map((s: string) => s.trim()).filter(Boolean)
       : undefined;
     const base = cmdOpts.base as string | undefined;
     const merge = cmdOpts.merge as string | undefined;
-    if (!changedFiles?.length && (!base || !merge)) {
-      logger.error("Either provide --changed-files or both --base and --merge for git diff.");
+    if (!reviewFiles?.length && !changedFiles?.length && (!base || !merge)) {
+      logger.error(
+        "Provide markdown file(s) to review (e.g. docspec review README.md), or --changed-files, or both --base and --merge for git diff."
+      );
       process.exit(1);
     }
     try {
-      const { prompt, outputPath } = await buildDocspecChangedPrompt({
+      const { prompt, outputPath } = await buildDocspecReviewPrompt({
+        reviewFiles,
         changedFiles,
         base,
         merge,
@@ -89,33 +98,37 @@ program
 program
   .command("generate")
   .description(
-    "Generate a new docspec for a markdown file and output a prompt for an external LLM to fill/improve it"
+    "Write or overwrite a docspec file from the template for a markdown file, then open a pull request so you can edit it."
   )
   .argument("<markdown_path>", "Path to the markdown file (e.g. README.md, docs/deploy.md)")
-  .option("--overwrite", "Overwrite existing docspec file")
-  .option("--output-prompt <file>", "Write implementation prompt to this file", "prompt.txt")
-  .option("--output-plan <file>", "Write plan prompt to this file (optional)")
   .action(async function (this: { opts: () => Record<string, unknown> }, markdownPath: string) {
     const opts = program.opts();
     logger.setVerbose(opts.verbose || false);
-    const cmdOpts = this.opts();
     const resolvedMd = path.resolve(process.cwd(), markdownPath).replace(/\\/g, "/");
     const cwd = process.cwd().replace(/\\/g, "/");
     const relativeMd = resolvedMd.startsWith(cwd)
       ? path.relative(cwd, resolvedMd).replace(/\\/g, "/")
       : markdownPath;
+    const docspecPath = markdownToDocspecPath(relativeMd);
+
     try {
-      const result = await buildDocspecGeneratePrompts({
-        markdownPath: relativeMd,
-        overwrite: cmdOpts.overwrite === true,
-        outputPromptPath: (cmdOpts.outputPrompt as string) || "prompt.txt",
-        outputPlanPath: cmdOpts.outputPlan as string | undefined,
-      });
-      logger.success(`Docspec written to ${markdownToDocspecPath(relativeMd)}`);
-      if (result.outputPromptPath) {
-        logger.success(`Prompt written to ${result.outputPromptPath}`);
-        console.log(result.outputPromptPath);
+      try {
+        await fs.access(resolvedMd);
+      } catch {
+        logger.error(`Markdown file not found: ${resolvedMd}`);
+        process.exit(1);
       }
+
+      await generateDocspec(relativeMd, cwd);
+      createBranchCommitAndOpenPR({
+        repoRoot: cwd,
+        paths: [docspecPath],
+        branchSlug: branchSlugFromMarkdownPath(relativeMd),
+        commitMessage: `chore: add/update docspec for ${relativeMd}`,
+        prTitle: `chore: add/update docspec for ${relativeMd}`,
+        prBody: `Docspec file created or updated from template. Review and edit as needed.`,
+      });
+      logger.success(`Docspec written to ${docspecPath}; pull request opened.`);
     } catch (error) {
       logger.error(error instanceof Error ? error.message : String(error));
       process.exit(1);

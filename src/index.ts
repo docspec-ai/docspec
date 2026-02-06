@@ -8,10 +8,8 @@ export {
   docspecToMarkdownPath,
   isDocspecPath,
 } from "./path-utils";
-export { buildDocspecChangedPrompt } from "./changed";
-export type { DocspecChangedOptions } from "./changed";
-export { buildDocspecGeneratePrompts } from "./generate";
-export type { DocspecGenerateOptions } from "./generate";
+export { buildDocspecReviewPrompt } from "./review";
+export type { DocspecReviewOptions } from "./review";
 export { REQUIRED_SECTIONS, SECTION_BOILERPLATE } from "./constants";
 export { logger, LogLevel } from "./logger";
 

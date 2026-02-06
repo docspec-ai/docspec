@@ -100,17 +100,15 @@ describe("CLI", () => {
     });
   });
 
-  describe("generate subcommand (file + prompt)", () => {
-    it("should generate docspec and write prompt file", async () => {
+  describe("generate subcommand (docspec + PR)", () => {
+    it("should create docspec file then fail without git repo when opening PR", async () => {
       await fs.writeFile(path.join(tempDir, "README.md"), "# Hello", "utf-8");
-      const result = await runCli("generate README.md --output-prompt prompt.txt");
+      const result = await runCli("generate README.md");
 
-      expect(result.code).toBe(0);
-      expect(result.stdout).toContain(".docspec/README.docspec.md");
-      expect(result.stdout).toContain("prompt");
-      const promptPath = path.join(tempDir, "prompt.txt");
-      const exists = await fs.access(promptPath).then(() => true).catch(() => false);
-      expect(exists).toBe(true);
+      const docspecPath = path.join(tempDir, ".docspec", "README.docspec.md");
+      const docspecExists = await fs.access(docspecPath).then(() => true).catch(() => false);
+      expect(docspecExists).toBe(true);
+      expect(result.code).not.toBe(0);
     });
   });
 
@@ -120,7 +118,7 @@ describe("CLI", () => {
 
       expect(result.code).toBe(0);
       expect(result.stdout).toContain("Usage:");
-      expect(result.stdout).toContain("changed");
+      expect(result.stdout).toContain("review");
       expect(result.stdout).toContain("generate");
       expect(result.stdout).toContain("markdown_path");
     });

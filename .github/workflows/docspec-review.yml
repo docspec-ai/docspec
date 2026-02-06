@@ -1,8 +1,8 @@
-# Run docspec changed on PR merge to produce a prompt, then run Claude with that prompt.
+# Run docspec review on PR merge (or manually for specific files) to produce a prompt, then run Claude.
 # Add ANTHROPIC_API_KEY to repository secrets. Docspec does not run the LLM; this workflow
 # uses the official Claude Code Action to run the generated prompt.
 
-name: Docspec changed
+name: Docspec review
 
 on:
   pull_request:
@@ -10,8 +10,12 @@ on:
   workflow_dispatch:
     inputs:
       pr_number:
-        description: 'Pull request number (for manual run)'
-        required: true
+        description: 'Pull request number (for manual run with PR context)'
+        required: false
+        type: string
+      review_files:
+        description: 'Comma-separated markdown file(s) to review (e.g. README.md, docs/deploy.md). If set, reviews only these; no PR diff.'
+        required: false
         type: string
 
 permissions:
@@ -19,11 +23,11 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: docspec-changed-${{ github.repository }}
+  group: docspec-review-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
-  docspec_then_claude:
+  docspec_review_then_claude:
     if: ${{ github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
@@ -32,11 +36,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Prepare docspec changed prompt
+      - name: Prepare docspec review prompt
         id: docspec
-        uses: ./.github/actions/docspec-check
+        uses: ./.github/actions/docspec-review
         with:
           pr_number: ${{ github.event.inputs.pr_number }}
+          review_files: ${{ github.event.inputs.review_files }}
 
       - name: Read prompt content
         id: prompt_content
