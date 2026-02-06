@@ -139,4 +139,24 @@ describe("generate", () => {
     expect(result.planPrompt).not.toMatch(/\{\{md_text\}\}/);
     expect(result.implPrompt).not.toMatch(/\{\{md_text\}\}/);
   });
+
+  it("preserves literal {{docspec_path}} and {{docspec_text}} inside markdown content", async () => {
+    const mdContent = [
+      "# Template docs",
+      "In this project we use placeholders like `{{docspec_path}}` and `{{docspec_text}}`.",
+      "Do not replace these when generating the prompt.",
+    ].join("\n");
+    await fs.writeFile(path.join(tempDir, "templating.md"), mdContent, "utf-8");
+
+    const result = await buildDocspecGeneratePrompts({
+      markdownPath: "templating.md",
+      repoRoot: tempDir,
+      overwrite: true,
+    });
+
+    // Literal {{docspec_path}} and {{docspec_text}} from the markdown must remain unchanged
+    expect(result.planPrompt).toContain("like `{{docspec_path}}` and `{{docspec_text}}`");
+    // Template placeholders (outside inserted content) are still substituted
+    expect(result.planPrompt).toContain("<docspec path=\".docspec/templating.docspec.md\">");
+  });
 });

@@ -80,14 +80,32 @@ Task:
 6. Make changes directly to the files
 `;
 
+/**
+ * Replace template placeholders {{key}} with values. Uses unique sentinels so that
+ * inserted content (e.g. {{md_text}} or {{docspec_text}}) is never scanned for
+ * other placeholders; otherwise literal {{docspec_path}} in markdown would be
+ * incorrectly replaced.
+ */
 function substitute(template: string, vars: Record<string, string>): string {
+  const keyToSentinel = new Map<string, string>();
+  const sentinelToValue = new Map<string, string>();
+  for (const key of Object.keys(vars)) {
+    const sentinel = `\u0000SUBST_${key}_${Math.random().toString(36).slice(2)}_${Date.now()}\u0000`;
+    keyToSentinel.set(key, sentinel);
+    sentinelToValue.set(sentinel, vars[key]);
+  }
   let out = template;
-  for (const [key, value] of Object.entries(vars)) {
-    // Use a function replacer so the value is inserted literally. A string replacer
-    // would interpret $&, $', $`, $n in the value as replacement patterns.
-    out = out.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), () => value);
+  for (const [key, sentinel] of keyToSentinel) {
+    out = out.replace(new RegExp(`\\{\\{${escapeRegExp(key)}\\}\\}`, "g"), sentinel);
+  }
+  for (const [sentinel, value] of sentinelToValue) {
+    out = out.split(sentinel).join(value);
   }
   return out;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export interface DocspecGenerateOptions {
