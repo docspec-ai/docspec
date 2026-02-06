@@ -97,7 +97,7 @@ function findCandidateDocspecs(
   // 1) Directly changed docspecs (under .docspec/)
   for (const f of changedFiles) {
     const normalized = path.normalize(f).replace(/\\/g, "/");
-    if (isDocspecPath(normalized) || (normalized.startsWith(".docspec/") && normalized.endsWith(".docspec.md"))) {
+    if (isDocspecPath(normalized)) {
       const full = path.join(repoRoot, f);
       add(full);
     }
