@@ -83,7 +83,6 @@ function findCandidateDocspecs(
   changedFiles: string[],
   maxDocspecs: number
 ): string[] {
-  const normalizedRoot = path.normalize(repoRoot).replace(/\\/g, "/");
   const candidates: string[] = [];
   const seen = new Set<string>();
 
