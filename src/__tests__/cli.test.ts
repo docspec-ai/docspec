@@ -129,7 +129,7 @@ describe("CLI", () => {
       const result = await runCli("--version");
 
       expect(result.code).toBe(0);
-      expect(result.stdout).toContain("0.3.0");
+      expect(result.stdout).toContain("0.4.0");
     });
   });
 });

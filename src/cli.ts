@@ -13,7 +13,7 @@ const program = new Command();
 program
   .name("docspec")
   .description("Generate docspec files and prompts under .docspec/")
-  .version("0.3.0")
+  .version("0.4.0")
   .option("-v, --verbose", "Enable verbose output with detailed logging")
   .argument("[markdown_path]", "Path to markdown file (creates .docspec/<path>.docspec.md)")
   .action(async (markdownPath: string) => {
