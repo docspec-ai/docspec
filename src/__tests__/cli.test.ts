@@ -17,13 +17,24 @@ describe("CLI", () => {
     process.chdir(tempDir);
   });
 
+  beforeAll(async () => {
+    const cliPath = path.resolve(process.cwd(), "dist", "cli.js");
+    try {
+      await fs.access(cliPath);
+    } catch {
+      throw new Error(
+        "CLI tests require dist/cli.js. Run 'npm run build' before 'npm test'."
+      );
+    }
+  });
+
   afterEach(async () => {
     process.chdir(originalCwd);
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
   const runCli = async (args: string): Promise<{ stdout: string; stderr: string; code: number }> => {
-    const cliPath = path.resolve(__dirname, "../../dist/cli.js");
+    const cliPath = path.resolve(originalCwd, "dist", "cli.js");
     try {
       const { stdout, stderr } = await execAsync(`node "${cliPath}" ${args}`, {
         cwd: tempDir,
