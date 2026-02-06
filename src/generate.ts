@@ -126,7 +126,7 @@ export async function buildDocspecGeneratePrompts(
     );
   }
 
-  await generateDocspec(mdPath);
+  await generateDocspec(mdPath, repoRoot);
 
   const mdText = await fs.readFile(mdFull, "utf-8");
   const docspecText = await fs.readFile(docspecFull, "utf-8");

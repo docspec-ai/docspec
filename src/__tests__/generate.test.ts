@@ -94,4 +94,24 @@ describe("generate", () => {
     expect(promptContent).toBe(result.implPrompt);
     expect(planContent).toBe(result.planPrompt);
   });
+
+  it("writes docspec under repoRoot when repoRoot differs from cwd", async () => {
+    const repoDir = path.join(tempDir, "repo");
+    await fs.mkdir(repoDir, { recursive: true });
+    await fs.writeFile(path.join(repoDir, "README.md"), "# Repo readme", "utf-8");
+    process.chdir(tempDir);
+
+    const result = await buildDocspecGeneratePrompts({
+      markdownPath: "README.md",
+      repoRoot: repoDir,
+    });
+
+    expect(result.planPrompt).toContain("# Repo readme");
+    expect(result.planPrompt).toContain("<docspec path=\".docspec/README.docspec.md\">");
+    const docspecPath = path.join(repoDir, ".docspec", "README.docspec.md");
+    const docspecExists = await fs.access(docspecPath).then(() => true).catch(() => false);
+    expect(docspecExists).toBe(true);
+    const docspecContent = await fs.readFile(docspecPath, "utf-8");
+    expect(docspecContent).toContain("# DOCSPEC:");
+  });
 });

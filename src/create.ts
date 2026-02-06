@@ -39,8 +39,10 @@ function resolveInput(inputPath: string): {
  * Generate a new docspec file. Accepts either a markdown path (e.g. README.md, docs/deploy.md)
  * or a docspec path under .docspec/ (e.g. .docspec/README.docspec.md).
  * Writes to .docspec/ using the convention: markdown P.md -> .docspec/P.docspec.md
+ * @param inputPath Markdown or docspec path (repo-relative).
+ * @param repoRoot Optional repo root; when provided, the file is written under this directory instead of process.cwd().
  */
-export async function generateDocspec(inputPath: string): Promise<void> {
+export async function generateDocspec(inputPath: string, repoRoot?: string): Promise<void> {
   logger.debug(`Generating docspec for: ${inputPath}`);
   const { docspecPath, markdownPath } = resolveInput(inputPath);
   logger.debug(`Docspec file: ${docspecPath}, target markdown: ${markdownPath}`);
@@ -48,15 +50,17 @@ export async function generateDocspec(inputPath: string): Promise<void> {
   const content = getDocspecTemplate(markdownPath);
   logger.debug(`Generated template with ${content.length} characters`);
 
-  const dir = path.dirname(docspecPath);
-  if (dir !== ".") {
+  const baseDir = repoRoot ? path.resolve(repoRoot) : process.cwd();
+  const docspecFull = path.join(baseDir, docspecPath);
+  const dir = path.dirname(docspecFull);
+  if (dir !== baseDir && dir !== ".") {
     logger.debug(`Creating directory: ${dir}`);
     await fs.mkdir(dir, { recursive: true });
   }
 
-  logger.debug(`Writing file: ${docspecPath}`);
-  await fs.writeFile(docspecPath, content, "utf-8");
-  logger.debug(`File written successfully: ${docspecPath}`);
+  logger.debug(`Writing file: ${docspecFull}`);
+  await fs.writeFile(docspecFull, content, "utf-8");
+  logger.debug(`File written successfully: ${docspecFull}`);
 }
 
 /**
