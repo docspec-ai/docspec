@@ -136,7 +136,6 @@ export async function buildDocspecGeneratePrompts(
     md_text: mdText,
     docspec_path: docspecPath,
     docspec_text: docspecText,
-    "{{PLAN}}": "{{PLAN}}",
   };
 
   const planPrompt = substitute(PLAN_TEMPLATE, vars);
