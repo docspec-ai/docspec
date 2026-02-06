@@ -85,7 +85,9 @@ runs:
 
         if [ -n "${{ inputs.changed_files }}" ]; then
           CHANGED=$(echo "${{ inputs.changed_files }}" | tr '\n' ',' | sed 's/,,*/,/g' | sed 's/^,//;s/,$//')
-          docspec changed --changed-files "$CHANGED" --output "${{ inputs.output_file }}" || true
+          docspec changed --changed-files "$CHANGED" --output "${{ inputs.output_file }}" \
+            --max-docspecs "${{ inputs.max_docspecs }}" \
+            --max-diff-chars "${{ inputs.max_diff_chars }}" || true
         else
           BASE="${{ steps.pr_details.outputs.base_sha }}"
           MERGE="${{ steps.pr_details.outputs.merge_sha }}"
