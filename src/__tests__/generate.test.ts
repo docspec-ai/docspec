@@ -114,4 +114,29 @@ describe("generate", () => {
     const docspecContent = await fs.readFile(docspecPath, "utf-8");
     expect(docspecContent).toContain("# DOCSPEC:");
   });
+
+  it("preserves $ replacement patterns in markdown and docspec content literally", async () => {
+    const mdContent = [
+      "# Regex and shell notes",
+      "In JS replace(), use `$&` for the matched string.",
+      "Use `$1` and `$2` for capture groups.",
+      "In shell, `` $` `` is before match, `$'` is after.",
+    ].join("\n");
+    await fs.writeFile(path.join(tempDir, "notes.md"), mdContent, "utf-8");
+
+    const result = await buildDocspecGeneratePrompts({
+      markdownPath: "notes.md",
+      repoRoot: tempDir,
+      overwrite: true,
+    });
+
+    // Must appear literally (no $ interpreted as replacement patterns)
+    expect(result.planPrompt).toContain("use `$&` for the matched string");
+    expect(result.planPrompt).toContain("`$1` and `$2` for capture groups");
+    expect(result.planPrompt).toContain("`` $` `` is before match");
+    expect(result.planPrompt).toContain("`$'` is after");
+    // Placeholder {{md_text}} must not appear in the interpolated content
+    expect(result.planPrompt).not.toMatch(/\{\{md_text\}\}/);
+    expect(result.implPrompt).not.toMatch(/\{\{md_text\}\}/);
+  });
 });
