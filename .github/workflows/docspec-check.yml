@@ -48,6 +48,13 @@ jobs:
           cat "$PROMPT_FILE" >> $GITHUB_OUTPUT
           echo "$DELIM" >> $GITHUB_OUTPUT
 
+      - name: Display full prompt
+        if: steps.docspec.outputs.has_prompt == 'true'
+        run: |
+          echo "=== Full prompt being sent to Claude ==="
+          cat "${{ steps.docspec.outputs.prompt_file }}"
+          echo "=== End of prompt ==="
+
       - name: Run Claude Code with docspec prompt
         if: steps.docspec.outputs.has_prompt == 'true'
         uses: anthropics/claude-code-action@v1
