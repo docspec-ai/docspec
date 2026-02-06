@@ -1,5 +1,6 @@
 node_modules/
 dist/
+.docspec/var/
 *.log
 .DS_Store
 *.tsbuildinfo
@@ -7,4 +8,7 @@ coverage/
 *.test.docspec.md
 __pycache__/
 *.pyc
+prompt.txt
+plan_prompt.txt
+impl_prompt.txt
 

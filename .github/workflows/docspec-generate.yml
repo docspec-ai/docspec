@@ -26,10 +26,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run docspec generate
-        uses: docspec-ai/docspec/.github/actions/docspec-generate@main
+      - name: Run docspec generate (prompt only)
+        uses: ./.github/actions/docspec-generate
         with:
           markdown_file: ${{ inputs.markdown_file }}
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 

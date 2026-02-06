@@ -1,0 +1,97 @@
+import * as fs from "fs/promises";
+import * as path from "path";
+import * as os from "os";
+import { buildDocspecGeneratePrompts } from "../generate";
+
+describe("generate", () => {
+  let tempDir: string;
+  let originalCwd: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "docspec-generate-test-"));
+    originalCwd = process.cwd();
+    process.chdir(tempDir);
+  });
+
+  afterEach(async () => {
+    process.chdir(originalCwd);
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("throws when markdown file does not exist", async () => {
+    await expect(
+      buildDocspecGeneratePrompts({
+        markdownPath: "missing.md",
+        repoRoot: tempDir,
+      })
+    ).rejects.toThrow("Markdown file not found");
+  });
+
+  it("creates docspec and returns plan and impl prompts", async () => {
+    await fs.writeFile(path.join(tempDir, "README.md"), "# Hello World", "utf-8");
+
+    const result = await buildDocspecGeneratePrompts({
+      markdownPath: "README.md",
+      repoRoot: tempDir,
+    });
+
+    expect(result.planPrompt).toContain("<markdown path=\"README.md\">");
+    expect(result.planPrompt).toContain("# Hello World");
+    expect(result.planPrompt).toContain("<docspec path=\".docspec/README.docspec.md\">");
+    expect(result.implPrompt).toContain("{{PLAN}}");
+    expect(result.implPrompt).toContain("README.md");
+    expect(result.implPrompt).toContain(".docspec/README.docspec.md");
+
+    const docspecPath = path.join(tempDir, ".docspec", "README.docspec.md");
+    const docspecExists = await fs.access(docspecPath).then(() => true).catch(() => false);
+    expect(docspecExists).toBe(true);
+  });
+
+  it("throws when docspec exists and overwrite is false", async () => {
+    await fs.mkdir(path.join(tempDir, ".docspec"), { recursive: true });
+    await fs.writeFile(path.join(tempDir, "README.md"), "# Hi", "utf-8");
+    await fs.writeFile(path.join(tempDir, ".docspec", "README.docspec.md"), "existing", "utf-8");
+
+    await expect(
+      buildDocspecGeneratePrompts({
+        markdownPath: "README.md",
+        repoRoot: tempDir,
+        overwrite: false,
+      })
+    ).rejects.toThrow("Docspec file already exists");
+  });
+
+  it("overwrites docspec when overwrite is true", async () => {
+    await fs.mkdir(path.join(tempDir, ".docspec"), { recursive: true });
+    await fs.writeFile(path.join(tempDir, "README.md"), "# Hi", "utf-8");
+    await fs.writeFile(path.join(tempDir, ".docspec", "README.docspec.md"), "old content", "utf-8");
+
+    await buildDocspecGeneratePrompts({
+      markdownPath: "README.md",
+      repoRoot: tempDir,
+      overwrite: true,
+    });
+
+    const content = await fs.readFile(path.join(tempDir, ".docspec", "README.docspec.md"), "utf-8");
+    expect(content).toContain("# DOCSPEC:");
+    expect(content).not.toBe("old content");
+  });
+
+  it("writes prompts to output paths when provided", async () => {
+    await fs.writeFile(path.join(tempDir, "doc.md"), "# Doc", "utf-8");
+
+    const result = await buildDocspecGeneratePrompts({
+      markdownPath: "doc.md",
+      repoRoot: tempDir,
+      outputPromptPath: "prompt.txt",
+      outputPlanPath: "plan.txt",
+    });
+
+    expect(result.outputPromptPath).toBe(path.join(tempDir, "prompt.txt"));
+    expect(result.outputPlanPath).toBe(path.join(tempDir, "plan.txt"));
+    const promptContent = await fs.readFile(path.join(tempDir, "prompt.txt"), "utf-8");
+    const planContent = await fs.readFile(path.join(tempDir, "plan.txt"), "utf-8");
+    expect(promptContent).toBe(result.implPrompt);
+    expect(planContent).toBe(result.planPrompt);
+  });
+});

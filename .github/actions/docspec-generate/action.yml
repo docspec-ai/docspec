@@ -1,90 +1,26 @@
 name: 'Docspec Generate'
-description: 'Manually trigger generation and improvements to a docspec file and its associated markdown file'
+description: 'Generate a docspec for a markdown file and prepare a prompt for your LLM (no LLM run; feed prompt to your own CLI)'
 
 inputs:
-  # Required inputs
   markdown_file:
-    description: 'Path to markdown file (e.g., README.md)'
+    description: 'Path to the markdown file (e.g., README.md)'
     required: true
-  anthropic_api_key:
-    description: 'Anthropic API key for Claude API access'
-    required: true
-  github_token:
-    description: 'GitHub token for creating PRs (use secrets.GITHUB_TOKEN)'
-    required: true
-  # Docspec-specific inputs
   overwrite:
     description: 'If true, overwrite existing docspec file. If false and docspec exists, action will fail.'
     required: false
     default: 'false'
-  # Provider selection
-  provider:
-    description: "AI provider to use: 'claude' or 'codex'"
+  output_prompt_file:
+    description: 'Path to write the implementation prompt file (relative to workspace)'
     required: false
-    default: 'claude'
-  # Claude-specific inputs
-  claude_code_oauth_token:
-    description: 'Claude Code OAuth token (alternative to anthropic_api_key)'
+    default: 'prompt.txt'
+  output_plan_file:
+    description: 'Optional path to write the plan prompt file'
     required: false
-  use_bedrock:
-    description: 'Use Amazon Bedrock instead of direct Anthropic API'
-    required: false
-    default: 'false'
-  use_vertex:
-    description: 'Use Google Vertex AI instead of direct Anthropic API'
-    required: false
-    default: 'false'
-  use_foundry:
-    description: 'Use Microsoft Foundry instead of direct Anthropic API'
-    required: false
-    default: 'false'
-  claude_args:
-    description: 'Additional arguments to pass to Claude Code CLI (e.g., "--max-turns 5 --model claude-3-5-sonnet-20241022")'
-    required: false
-    default: ''
-  # Codex-specific inputs
-  openai_api_key:
-    description: 'OpenAI API key for Codex'
-    required: false
-  responses_api_endpoint:
-    description: 'Optional Responses API endpoint override for Codex (e.g., for Azure OpenAI)'
-    required: false
-  codex_args:
-    description: 'Extra arguments forwarded to codex exec (JSON array or shell-style string)'
-    required: false
-    default: ''
-  codex_sandbox:
-    description: 'Sandbox mode for Codex: workspace-write, read-only, or danger-full-access'
-    required: false
-    default: 'workspace-write'
-  codex_safety_strategy:
-    description: 'Safety strategy for Codex: drop-sudo, unprivileged-user, read-only, or unsafe'
-    required: false
-    default: 'drop-sudo'
-  # Plan phase inputs
-  enable_plan:
-    description: 'Enable plan phase before implementation (runs LLM twice: once for planning, once for implementation)'
-    required: false
-    default: 'true'
-  plan_prompt_template:
-    description: 'Optional prompt template for the plan phase. If not provided, uses a default plan prompt.'
-    required: false
-  plan_model:
-    description: 'Optional model to use for plan phase (overrides default model)'
-    required: false
-  # PR customization inputs
-  branch_prefix:
-    description: 'Prefix for generated branches'
-    required: false
-  pr_title_template:
-    description: 'Template for created PR title (supports variable placeholders)'
-    required: false
-  pr_body_template:
-    description: 'Template for created PR body (supports variable placeholders)'
-    required: false
-  base_branch:
-    description: 'Base branch to create new branch from (defaults to repository default branch)'
-    required: false
+
+outputs:
+  prompt_file:
+    description: 'Absolute path to the generated prompt file'
+    value: ${{ steps.prepare.outputs.prompt_file }}
 
 runs:
   using: 'composite'
@@ -94,170 +30,17 @@ runs:
       with:
         node-version: '20'
 
-    - name: Install docspec CLI
-      shell: bash
+    - name: Install docspec
       run: npm install -g docspec
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Prepare docspec generate prompts
-      id: prepare_prompts
+    - name: Prepare docspec generate prompt
+      id: prepare
       shell: bash
       run: |
-        # Find the script in the action repository
-        # github.action_path points to .github/actions/docspec-generate in the checked-out action repo
-        # We need to go up 3 levels: docspec-generate -> actions -> .github -> repo root
-        ACTION_PATH="${{ github.action_path }}"
-        ACTION_REPO_ROOT=$(dirname "$(dirname "$(dirname "$ACTION_PATH")")")
-        SCRIPT_PATH="$ACTION_REPO_ROOT/.github/scripts/prepare-docspec-generate-prompts.py"
-        
-        if [ ! -f "$SCRIPT_PATH" ]; then
-          echo "Error: Script not found at $SCRIPT_PATH"
-          echo "Action path: $ACTION_PATH"
-          echo "Action repo root: $ACTION_REPO_ROOT"
-          exit 1
-        fi
-        
-        # Use GITHUB_WORKSPACE as the repository where the workflow runs
-        # This is where we'll run the script and write the prompt files
         REPO_ROOT="$GITHUB_WORKSPACE"
-        PLAN_PROMPT_FILE="$REPO_ROOT/plan_prompt.txt"
-        IMPL_PROMPT_FILE="$REPO_ROOT/impl_prompt.txt"
-        
-        # Add the scripts directory to PYTHONPATH so prompt_utils can be imported
-        export PYTHONPATH="$ACTION_REPO_ROOT/.github/scripts:$PYTHONPATH"
-        
-        # Run script from the user's repository root so it can access their files
-        # The script will write the prompt files to the user's repository
         cd "$REPO_ROOT"
-        SCRIPT_OUTPUT=$(PLAN_PROMPT_OUTPUT_FILE="$PLAN_PROMPT_FILE" IMPL_PROMPT_OUTPUT_FILE="$IMPL_PROMPT_FILE" python3 "$SCRIPT_PATH" 2>&1)
-        SCRIPT_EXIT_CODE=$?
-        
-        # Check if script failed
-        if [ $SCRIPT_EXIT_CODE -ne 0 ]; then
-          echo "Error: Script failed with exit code $SCRIPT_EXIT_CODE"
-          echo "Output: $SCRIPT_OUTPUT"
-          exit 1
-        fi
-        
-        # Check if prompt files exist
-        if [ ! -f "$PLAN_PROMPT_FILE" ] || [ ! -s "$PLAN_PROMPT_FILE" ]; then
-          echo "Error: Plan prompt file not found or empty at $PLAN_PROMPT_FILE"
-          echo "Script output: $SCRIPT_OUTPUT"
-          exit 1
-        fi
-        
-        if [ ! -f "$IMPL_PROMPT_FILE" ] || [ ! -s "$IMPL_PROMPT_FILE" ]; then
-          echo "Error: Implementation prompt file not found or empty at $IMPL_PROMPT_FILE"
-          echo "Script output: $SCRIPT_OUTPUT"
-          exit 1
-        fi
-        
-        # Verify prompts have meaningful content (not just whitespace)
-        if [ -z "$(cat "$PLAN_PROMPT_FILE" | tr -d '[:space:]')" ]; then
-          echo "Error: Plan prompt is empty or contains only whitespace"
-          exit 1
-        fi
-        
-        if [ -z "$(cat "$IMPL_PROMPT_FILE" | tr -d '[:space:]')" ]; then
-          echo "Error: Implementation prompt is empty or contains only whitespace"
-          exit 1
-        fi
-        
-        # Output as multiline strings
-        PLAN_DELIMITER="DOCSPEC_PLAN_EOF_$(date +%s)_$$_$RANDOM"
-        IMPL_DELIMITER="DOCSPEC_IMPL_EOF_$(date +%s)_$$_$RANDOM"
-        {
-          echo "plan_prompt<<$PLAN_DELIMITER"
-          cat "$PLAN_PROMPT_FILE"
-          echo ""
-          echo "$PLAN_DELIMITER"
-        } >> $GITHUB_OUTPUT
-        {
-          echo "impl_prompt<<$IMPL_DELIMITER"
-          cat "$IMPL_PROMPT_FILE"
-          echo ""
-          echo "$IMPL_DELIMITER"
-        } >> $GITHUB_OUTPUT
-      env:
-        MARKDOWN_FILE: ${{ inputs.markdown_file }}
-        OVERWRITE_DOCSPEC: ${{ inputs.overwrite }}
-
-    - name: Get default branch
-      id: default_branch
-      shell: bash
-      run: |
-        BASE_BRANCH="${{ inputs.base_branch }}"
-        if [ -z "$BASE_BRANCH" ]; then
-          BASE_BRANCH=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)
-        fi
-        echo "branch=$BASE_BRANCH" >> $GITHUB_OUTPUT
-      env:
-        GH_TOKEN: ${{ inputs.github_token }}
-
-    - name: Prepare default values
-      id: defaults
-      shell: bash
-      run: |
-        # Set default branch_prefix if not provided
-        BRANCH_PREFIX="${{ inputs.branch_prefix }}"
-        if [ -z "$BRANCH_PREFIX" ]; then
-          BRANCH_PREFIX="docs/generate-"
-        fi
-        # Set default pr_title_template if not provided
-        PR_TITLE="${{ inputs.pr_title_template }}"
-        if [ -z "$PR_TITLE" ]; then
-          PR_TITLE="Docs: generate and improve ${{ inputs.markdown_file }} and its docspec"
-        fi
-        # Set default pr_body_template if not provided
-        PR_BODY="${{ inputs.pr_body_template }}"
-        if [ -z "$PR_BODY" ]; then
-          PR_BODY="Automated generation and improvements to ${{ inputs.markdown_file }} and its docspec file using Claude."
-        fi
-        DELIMITER="BRANCH_PREFIX_EOF_$(date +%s)_$$"
-        {
-          echo "branch_prefix<<$DELIMITER"
-          echo "$BRANCH_PREFIX"
-          echo "$DELIMITER"
-        } >> $GITHUB_OUTPUT
-        DELIMITER="PR_TITLE_EOF_$(date +%s)_$$"
-        {
-          echo "pr_title_template<<$DELIMITER"
-          echo "$PR_TITLE"
-          echo "$DELIMITER"
-        } >> $GITHUB_OUTPUT
-        DELIMITER="PR_BODY_EOF_$(date +%s)_$$"
-        {
-          echo "pr_body_template<<$DELIMITER"
-          echo "$PR_BODY"
-          echo "$DELIMITER"
-        } >> $GITHUB_OUTPUT
-
-    - name: Run AI automation for docspec generate
-      uses: docspec-ai/github-ai-actions@main
-      with:
-        provider: ${{ inputs.provider }}
-        enable_plan: ${{ inputs.enable_plan }}
-        plan_prompt_template: ${{ steps.prepare_prompts.outputs.plan_prompt }}
-        prompt_template: ${{ steps.prepare_prompts.outputs.impl_prompt }}
-        anthropic_api_key: ${{ inputs.anthropic_api_key }}
-        claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
-        use_bedrock: ${{ inputs.use_bedrock }}
-        use_vertex: ${{ inputs.use_vertex }}
-        use_foundry: ${{ inputs.use_foundry }}
-        claude_args: ${{ inputs.claude_args }}
-        openai_api_key: ${{ inputs.openai_api_key }}
-        responses_api_endpoint: ${{ inputs.responses_api_endpoint }}
-        codex_args: ${{ inputs.codex_args }}
-        codex_sandbox: ${{ inputs.codex_sandbox }}
-        codex_safety_strategy: ${{ inputs.codex_safety_strategy }}
-        github_token: ${{ inputs.github_token }}
-        branch_prefix: ${{ steps.defaults.outputs.branch_prefix }}
-        pr_title_template: ${{ steps.defaults.outputs.pr_title_template }}
-        pr_body_template: ${{ steps.defaults.outputs.pr_body_template }}
-        base_branch: ${{ steps.default_branch.outputs.branch }}
-        plan_model: ${{ inputs.plan_model }}
-
+        CMD="docspec generate ${{ inputs.markdown_file }} --output-prompt ${{ inputs.output_prompt_file }}"
+        [ "${{ inputs.overwrite }}" = "true" ] && CMD="$CMD --overwrite"
+        [ -n "${{ inputs.output_plan_file }}" ] && CMD="$CMD --output-plan ${{ inputs.output_plan_file }}"
+        $CMD
+        echo "prompt_file=$REPO_ROOT/${{ inputs.output_prompt_file }}" >> $GITHUB_OUTPUT

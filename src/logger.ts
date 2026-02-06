@@ -26,13 +26,6 @@ class Logger {
   }
 
   /**
-   * Set the minimum log level
-   */
-  setLogLevel(level: LogLevel): void {
-    this.logLevel = level;
-  }
-
-  /**
    * Log a debug message (only shown in verbose mode)
    */
   debug(message: string, ...args: any[]): void {
@@ -75,13 +68,6 @@ class Logger {
     if (this.logLevel <= LogLevel.INFO) {
       console.log(`✅ ${message}`, ...args);
     }
-  }
-
-  /**
-   * Check if verbose mode is enabled
-   */
-  isVerbose(): boolean {
-    return this.verbose;
   }
 }
 

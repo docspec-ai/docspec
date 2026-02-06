@@ -1,4 +1,4 @@
-import { parseFormatFile, getFormatFilePath, ParsedFormat } from "./format-parser";
+import { parseFormatFile, getFormatFilePath, ParsedFormat } from "./template";
 import { logger } from "./logger";
 
 let cachedFormat: ParsedFormat | null = null;
@@ -25,7 +25,7 @@ function loadFormat(): ParsedFormat {
     logger.debug(`Error loading format: ${error instanceof Error ? error.message : String(error)}`);
     throw new Error(
       `Failed to load docspec format file: ${error instanceof Error ? error.message : String(error)}\n` +
-      `Make sure docspec-format.md exists in the project root.`
+      `The template is at .docspec/docspec.md (it is seeded from the default on first run).`
     );
   }
 }

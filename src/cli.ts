@@ -1,146 +1,125 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import * as fs from "fs/promises";
 import * as path from "path";
-import { validateDocspec } from "./validator";
-import { generateDocspec } from "./generator";
+import { generateDocspec } from "./create";
 import { logger } from "./logger";
+import { markdownToDocspecPath } from "./path-utils";
+import { buildDocspecChangedPrompt } from "./changed";
+import { buildDocspecGeneratePrompts } from "./generate";
 
 const program = new Command();
 
 program
   .name("docspec")
-  .description("Generate and validate docspec files (*.docspec.md)")
+  .description("Generate docspec files and prompts under .docspec/")
   .version("0.1.0")
-  .option("-v, --verbose", "Enable verbose output with detailed logging");
-
-program
-  .command("validate")
-  .description("Validate docspec files")
-  .argument("[paths...]", "Paths to docspec files (if not provided, finds all *.docspec.md files)")
-  .action(async (filePaths: string[]) => {
-    // Enable verbose mode if flag is set
+  .option("-v, --verbose", "Enable verbose output with detailed logging")
+  .argument("[markdown_path]", "Path to markdown file (creates .docspec/<path>.docspec.md)")
+  .action(async (markdownPath: string) => {
+    if (!markdownPath) return;
     const opts = program.opts();
     logger.setVerbose(opts.verbose || false);
-    
-    logger.debug("Starting validation process");
-    
-    let filesToValidate: string[] = [];
-    
-    if (filePaths.length > 0) {
-      // Use provided file paths (from pre-commit or user)
-      logger.debug(`Using provided file paths: ${filePaths.join(", ")}`);
-      filesToValidate = filePaths;
-    } else {
-      // Find all *.docspec.md files in current directory tree
-      logger.debug(`Searching for *.docspec.md files in: ${process.cwd()}`);
-      filesToValidate = await findDocspecFiles(process.cwd());
-      logger.debug(`Found ${filesToValidate.length} docspec file(s)`);
-    }
-    
-    if (filesToValidate.length === 0) {
-      logger.info("No docspec files found to validate.");
-      process.exit(0);
-    }
-    
-    logger.info(`Validating ${filesToValidate.length} file(s)...`);
-    let hasErrors = false;
-    
-    for (const filePath of filesToValidate) {
-      logger.debug(`Validating file: ${filePath}`);
-      const result = await validateDocspec(filePath);
-      
-      if (!result.valid) {
-        hasErrors = true;
-        logger.error(`\n${filePath}:`);
-        for (const error of result.errors) {
-          logger.error(`  - ${error}`);
-        }
-      } else {
-        logger.success(filePath);
-      }
-    }
-    
-    if (hasErrors) {
-      logger.debug("Validation completed with errors");
+    try {
+      const resolved = path.resolve(process.cwd(), markdownPath).replace(/\\/g, "/");
+      const cwd = process.cwd().replace(/\\/g, "/");
+      const relativeMd = resolved.startsWith(cwd)
+        ? path.relative(cwd, resolved).replace(/\\/g, "/")
+        : markdownPath;
+      await generateDocspec(relativeMd);
+      logger.success(`Generated docspec file: ${markdownToDocspecPath(relativeMd)}`);
+    } catch (error) {
+      logger.error(
+        `Failed to generate docspec file: ${error instanceof Error ? error.message : String(error)}`
+      );
       process.exit(1);
-    } else {
-      logger.debug("Validation completed successfully");
-      logger.info(`\nAll ${filesToValidate.length} file(s) validated successfully.`);
+    }
+  });
+
+program
+  .command("changed")
+  .description(
+    "Generate a prompt to sync markdown files with their docspecs based on changed files (for use with an external LLM)"
+  )
+  .option(
+    "--changed-files <paths>",
+    "Comma-separated list of changed file paths (or omit and use --base/--merge for git diff)"
+  )
+  .option("--base <sha>", "Base SHA for git diff (e.g. PR base)")
+  .option("--merge <sha>", "Merge SHA for git diff (e.g. PR merge commit)")
+  .option("--output <file>", "Write prompt to this file", "prompt.txt")
+  .option("--max-docspecs <n>", "Max docspecs to include", "10")
+  .option("--max-diff-chars <n>", "Max characters of diff to include", "120000")
+  .action(async function (this: { opts: () => Record<string, unknown> }) {
+    const opts = program.opts();
+    logger.setVerbose(opts.verbose || false);
+    const cmdOpts = this.opts();
+    const changedFiles = cmdOpts.changedFiles
+      ? String(cmdOpts.changedFiles).split(",").map((s: string) => s.trim()).filter(Boolean)
+      : undefined;
+    const base = cmdOpts.base as string | undefined;
+    const merge = cmdOpts.merge as string | undefined;
+    if (!changedFiles?.length && (!base || !merge)) {
+      logger.error("Either provide --changed-files or both --base and --merge for git diff.");
+      process.exit(1);
+    }
+    try {
+      const { prompt, outputPath } = await buildDocspecChangedPrompt({
+        changedFiles,
+        base,
+        merge,
+        outputPath: (cmdOpts.output as string) || "prompt.txt",
+        maxDocspecs: parseInt(String(cmdOpts.maxDocspecs), 10),
+        maxDiffChars: parseInt(String(cmdOpts.maxDiffChars), 10),
+      });
+      if (!prompt) {
+        logger.info("No relevant docspec files found; no prompt written.");
+        process.exit(0);
+      }
+      if (outputPath) {
+        logger.success(`Prompt written to ${outputPath}`);
+        console.log(outputPath);
+      }
+    } catch (error) {
+      logger.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
     }
   });
 
 program
   .command("generate")
-  .description("Generate a new docspec file")
-  .argument("<path>", "Path where the docspec file should be created (must end with .docspec.md)")
-  .action(async (filePath: string) => {
-    // Enable verbose mode if flag is set
+  .description(
+    "Generate a new docspec for a markdown file and output a prompt for an external LLM to fill/improve it"
+  )
+  .argument("<markdown_path>", "Path to the markdown file (e.g. README.md, docs/deploy.md)")
+  .option("--overwrite", "Overwrite existing docspec file")
+  .option("--output-prompt <file>", "Write implementation prompt to this file", "prompt.txt")
+  .option("--output-plan <file>", "Write plan prompt to this file (optional)")
+  .action(async function (this: { opts: () => Record<string, unknown> }, markdownPath: string) {
     const opts = program.opts();
     logger.setVerbose(opts.verbose || false);
-    
-    logger.debug("Starting generation process");
-    
+    const cmdOpts = this.opts();
+    const resolvedMd = path.resolve(process.cwd(), markdownPath).replace(/\\/g, "/");
+    const cwd = process.cwd().replace(/\\/g, "/");
+    const relativeMd = resolvedMd.startsWith(cwd)
+      ? path.relative(cwd, resolvedMd).replace(/\\/g, "/")
+      : markdownPath;
     try {
-      // Ensure the path ends with .docspec.md
-      if (!filePath.endsWith(".docspec.md")) {
-        logger.debug(`Appending .docspec.md extension to: ${filePath}`);
-        filePath = filePath + ".docspec.md";
+      const result = await buildDocspecGeneratePrompts({
+        markdownPath: relativeMd,
+        overwrite: cmdOpts.overwrite === true,
+        outputPromptPath: (cmdOpts.outputPrompt as string) || "prompt.txt",
+        outputPlanPath: cmdOpts.outputPlan as string | undefined,
+      });
+      logger.success(`Docspec written to ${markdownToDocspecPath(relativeMd)}`);
+      if (result.outputPromptPath) {
+        logger.success(`Prompt written to ${result.outputPromptPath}`);
+        console.log(result.outputPromptPath);
       }
-      
-      logger.debug(`Generating docspec file at: ${filePath}`);
-      await generateDocspec(filePath);
-      logger.success(`Generated docspec file: ${filePath}`);
     } catch (error) {
-      logger.error(`Failed to generate docspec file: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(error instanceof Error ? error.message : String(error));
       process.exit(1);
     }
   });
 
-// Parse command line arguments
 program.parse();
-
-/**
- * Recursively find all *.docspec.md files in a directory
- */
-async function findDocspecFiles(dir: string): Promise<string[]> {
-  const files: string[] = [];
-  
-  logger.debug(`Scanning directory: ${dir}`);
-  
-  try {
-    const entries = await fs.readdir(dir, { withFileTypes: true });
-    logger.debug(`Found ${entries.length} entries in ${dir}`);
-    
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      
-      // Skip node_modules and .git directories
-      if (entry.name === "node_modules" || entry.name === ".git" || entry.name === "dist") {
-        logger.debug(`Skipping directory: ${entry.name}`);
-        continue;
-      }
-      
-      if (entry.isDirectory()) {
-        logger.debug(`Recursing into directory: ${fullPath}`);
-        const subFiles = await findDocspecFiles(fullPath);
-        files.push(...subFiles);
-      } else if (entry.isFile() && entry.name.endsWith(".docspec.md")) {
-        logger.debug(`Found docspec file: ${fullPath}`);
-        files.push(fullPath);
-      }
-    }
-  } catch (error) {
-    // Ignore permission errors
-    if (error instanceof Error && "code" in error && error.code !== "EACCES") {
-      logger.warn(`Error reading directory ${dir}: ${error.message}`);
-      throw error;
-    } else if (error instanceof Error && "code" in error && error.code === "EACCES") {
-      logger.debug(`Permission denied for directory ${dir}, skipping`);
-    }
-  }
-  
-  return files;
-}
-
