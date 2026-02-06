@@ -23,9 +23,11 @@ describe("CLI", () => {
   });
 
   const runCli = async (args: string): Promise<{ stdout: string; stderr: string; code: number }> => {
-    const cliPath = path.join(__dirname, "../../dist/cli.js");
+    const cliPath = path.resolve(__dirname, "../../dist/cli.js");
     try {
-      const { stdout, stderr } = await execAsync(`node ${cliPath} ${args}`);
+      const { stdout, stderr } = await execAsync(`node "${cliPath}" ${args}`, {
+        cwd: tempDir,
+      });
       return { stdout: stdout || "", stderr: stderr || "", code: 0 };
     } catch (error: any) {
       return {
@@ -116,7 +118,7 @@ describe("CLI", () => {
       const result = await runCli("--version");
 
       expect(result.code).toBe(0);
-      expect(result.stdout).toContain("0.1.0");
+      expect(result.stdout).toContain("0.3.0");
     });
   });
 });
