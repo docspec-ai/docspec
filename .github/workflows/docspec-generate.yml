@@ -1,3 +1,6 @@
+# Generate a docspec for a markdown file, then run Claude with the generated prompt.
+# Add ANTHROPIC_API_KEY to repository secrets for manual runs.
+
 name: Docspec generate
 
 on:
@@ -27,7 +30,25 @@ jobs:
           fetch-depth: 0
 
       - name: Run docspec generate (prompt only)
+        id: generate
         uses: ./.github/actions/docspec-generate
         with:
           markdown_file: ${{ inputs.markdown_file }}
 
+      - name: Read prompt content
+        id: prompt_content
+        run: |
+          PROMPT_FILE="${{ steps.generate.outputs.prompt_file }}"
+          DELIM="DOCSPEC_EOF_$(date +%s)_$$"
+          echo "content<<$DELIM" >> $GITHUB_OUTPUT
+          cat "$PROMPT_FILE" >> $GITHUB_OUTPUT
+          echo "$DELIM" >> $GITHUB_OUTPUT
+
+      - name: Run Claude Code with docspec prompt
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: ${{ steps.prompt_content.outputs.content }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
