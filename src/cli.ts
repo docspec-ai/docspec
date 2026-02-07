@@ -12,13 +12,17 @@ program
   .name("docspec")
   .description("Generate docspec files and prompts under .docspec/")
   .version("0.4.0")
-  .option("-v, --verbose", "Enable verbose output with detailed logging")
+  .option("-v, --verbose", "Enable verbose output with detailed logging");
+
+const createCmd = program
+  .command("create")
+  .description("Create markdown and docspec files from the template. Creates the file and .docspec/<path>.docspec.md if missing.")
   .option("--overwrite", "Overwrite existing docspec file only (markdown is never overwritten); default is to skip when docspec exists")
-  .argument("<markdown_path>", "Path to markdown file (e.g. README.md, docs/deploy.md). Creates the file and .docspec/<path>.docspec.md if missing.")
+  .argument("<markdown_path>", "Path to markdown file (e.g. README.md, docs/deploy.md).")
   .action(async (markdownPath: string) => {
     const opts = program.opts();
     logger.setVerbose(opts.verbose || false);
-    const overwrite = Boolean(opts.overwrite);
+    const overwrite = Boolean(createCmd.opts().overwrite);
     try {
       const resolved = path.resolve(process.cwd(), markdownPath).replace(/\\/g, "/");
       const cwd = process.cwd().replace(/\\/g, "/");

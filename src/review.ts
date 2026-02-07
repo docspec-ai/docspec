@@ -297,7 +297,7 @@ export async function buildDocspecReviewPrompt(
     parts.push(
       "## Markdown files in scope without a docspec",
       "",
-      "The following markdown files are in scope but have no corresponding .docspec file. Consider whether each should have a docspec; if so, run `docspec <path>` and include the new docspec file in your PR.",
+      "The following markdown files are in scope but have no corresponding .docspec file. Consider whether each should have a docspec; if so, run `docspec create <path>` and include the new docspec file in your PR.",
       "",
       ...markdownWithoutDocspec.map((md) => `- ${md}`),
       "",
@@ -314,8 +314,8 @@ export async function buildDocspecReviewPrompt(
     "5. Use the Edit tool to modify markdown files directly if changes are needed",
     "6. When you have made any documentation changes: create a new branch, commit your changes, push the branch, and open a pull request using the gh CLI (e.g. gh pr create). If you made no file changes, do not create a branch or PR.",
     "7. Do not provide any text output - files are modified directly using tools",
-    "8. Assess whether the changes warrant **new documentation**: one or more new markdown files that do not exist yet (e.g. to document a new API, feature, or module). If so, create the new markdown file(s), run `docspec <path>` for each to create the doc and docspec(s), edit as needed, and include in your commit and PR.",
-    "9. For any markdown file listed above as having no docspec, decide whether it should have one. If so, run `docspec <path>` and include the new docspec file in your PR."
+    "8. Assess whether the changes warrant **new documentation**: one or more new markdown files that do not exist yet (e.g. to document a new API, feature, or module). If so, create the new markdown file(s), run `docspec create <path>` for each to create the doc and docspec(s), edit as needed, and include in your commit and PR.",
+    "9. For any markdown file listed above as having no docspec, decide whether it should have one. If so, run `docspec create <path>` and include the new docspec file in your PR."
   );
 
   const prompt = parts.join("\n");

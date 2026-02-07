@@ -48,9 +48,9 @@ describe("CLI", () => {
     }
   };
 
-  describe("default command (docspec <markdown_path>)", () => {
+  describe("create command (docspec create <markdown_path>)", () => {
     it("should seed .docspec/docspec.md from default when missing", async () => {
-      const result = await runCli("seed-test.md");
+      const result = await runCli("create seed-test.md");
       expect(result.code).toBe(0);
       const templatePath = path.join(tempDir, ".docspec", "docspec.md");
       const templateExists = await fs.access(templatePath).then(() => true).catch(() => false);
@@ -61,7 +61,7 @@ describe("CLI", () => {
     });
 
     it("should create both empty markdown and docspec for markdown path", async () => {
-      const result = await runCli("new.md");
+      const result = await runCli("create new.md");
 
       expect(result.code).toBe(0);
       expect(result.stdout).toContain("✅");
@@ -78,7 +78,7 @@ describe("CLI", () => {
     });
 
     it("should generate file with correct content", async () => {
-      await runCli("test.md");
+      await runCli("create test.md");
 
       const filePath = path.join(tempDir, ".docspec", "test.docspec.md");
       const content = await fs.readFile(filePath, "utf-8");
@@ -87,7 +87,7 @@ describe("CLI", () => {
     });
 
     it("should create nested directories under .docspec/", async () => {
-      const result = await runCli("nested/deep/test.md");
+      const result = await runCli("create nested/deep/test.md");
 
       expect(result.code).toBe(0);
       const filePath = path.join(tempDir, ".docspec", "nested", "deep", "test.docspec.md");
@@ -96,7 +96,7 @@ describe("CLI", () => {
     });
 
     it("should generate link to target markdown file", async () => {
-      await runCli("my-awesome-doc.md");
+      await runCli("create my-awesome-doc.md");
 
       const filePath = path.join(tempDir, ".docspec", "my-awesome-doc.docspec.md");
       const content = await fs.readFile(filePath, "utf-8");
@@ -108,7 +108,7 @@ describe("CLI", () => {
       await fs.mkdir(path.join(tempDir, ".docspec"), { recursive: true });
       await fs.writeFile(path.join(tempDir, ".docspec", "existing.docspec.md"), "# DOCSPEC", "utf-8");
 
-      const result = await runCli("existing.md");
+      const result = await runCli("create existing.md");
 
       expect(result.code).toBe(0);
       expect(result.stdout).toContain("already exist");
@@ -123,7 +123,7 @@ describe("CLI", () => {
       await fs.mkdir(path.join(tempDir, ".docspec"), { recursive: true });
       await fs.writeFile(path.join(tempDir, ".docspec", "overwrite.docspec.md"), "# Old docspec", "utf-8");
 
-      const result = await runCli("overwrite.md --overwrite");
+      const result = await runCli("create overwrite.md --overwrite");
 
       expect(result.code).toBe(0);
       const mdContent = await fs.readFile(path.join(tempDir, "overwrite.md"), "utf-8");
@@ -134,6 +134,13 @@ describe("CLI", () => {
     });
   });
 
+  describe("review command", () => {
+    it("should accept --base and --merge (no unknown option error)", async () => {
+      const result = await runCli("review --base abc123 --merge def456 --output prompt.txt");
+      expect(result.stderr).not.toContain("unknown option");
+    });
+  });
+
   describe("help and version", () => {
     it("should show help message", async () => {
       const result = await runCli("--help");
@@ -141,8 +148,9 @@ describe("CLI", () => {
       expect(result.code).toBe(0);
       expect(result.stdout).toContain("Usage:");
       expect(result.stdout).toContain("review");
+      expect(result.stdout).toContain("create");
+      expect(result.stdout).toContain("review");
       expect(result.stdout).toContain("markdown_path");
-      expect(result.stdout).toContain("overwrite");
     });
 
     it("should show version", async () => {
@@ -150,6 +158,12 @@ describe("CLI", () => {
 
       expect(result.code).toBe(0);
       expect(result.stdout).toContain("0.4.0");
+    });
+
+    it("should show create --help with overwrite option", async () => {
+      const result = await runCli("create --help");
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain("overwrite");
     });
   });
 });
