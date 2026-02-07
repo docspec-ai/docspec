@@ -24,7 +24,8 @@
   "files": [
     "dist",
     "README.md",
-    "docspec-format.md"
+    "docspec-format.md",
+    "docspec-review-task.md"
   ],
   "devDependencies": {
     "@types/jest": "^30.0.0",
