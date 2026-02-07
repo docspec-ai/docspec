@@ -1,66 +1,67 @@
 /**
- * Creates docspec files from the template (file generation).
- * For the "docspec generate" command and prompt building, see generate.ts.
+ * Creates docspec files and optionally markdown files from the template.
  */
 import { getDocspecTemplate } from "./constants";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { logger } from "./logger";
-import {
-  markdownToDocspecPath,
-  docspecToMarkdownPath,
-  isDocspecPath,
-} from "./path-utils";
+import { markdownToDocspecPath } from "./path-utils";
 
-/**
- * Resolve input path to docspec path and markdown path.
- * Accepts either a markdown path (e.g. README.md, docs/deploy.md) or a docspec path under .docspec/.
- */
-function resolveInput(inputPath: string): {
-  docspecPath: string;
-  markdownPath: string;
-} {
-  const normalized = path.normalize(inputPath).replace(/\\/g, "/");
-  if (isDocspecPath(normalized)) {
-    return {
-      docspecPath: normalized,
-      markdownPath: docspecToMarkdownPath(normalized),
-    };
-  }
-  // Treat as markdown path (e.g. README.md or docs/deploy.md)
-  const mdPath = normalized.endsWith(".md") ? normalized : normalized + ".md";
-  return {
-    docspecPath: markdownToDocspecPath(mdPath),
-    markdownPath: mdPath,
-  };
+const EMPTY_MARKDOWN_CONTENT = "";
+
+export interface EnsureDocAndDocspecOptions {
+  /** If true, overwrite existing markdown and docspec files. If false, skip when either exists. */
+  overwrite?: boolean;
+}
+
+export interface EnsureDocAndDocspecResult {
+  markdownCreated: boolean;
+  docspecCreated: boolean;
 }
 
 /**
- * Generate a new docspec file. Accepts either a markdown path (e.g. README.md, docs/deploy.md)
- * or a docspec path under .docspec/ (e.g. .docspec/README.docspec.md).
- * Writes to .docspec/ using the convention: markdown P.md -> .docspec/P.docspec.md
- * @param inputPath Markdown or docspec path (repo-relative).
- * @param repoRoot Optional repo root; when provided, the file is written under this directory instead of process.cwd().
+ * Ensure both the markdown file and its docspec exist. Creates an empty markdown file and a
+ * docspec from the template when missing. If either file already exists, does nothing unless
+ * options.overwrite is true.
+ * @param markdownPath Repo-relative markdown path (e.g. README.md, docs/deploy.md).
+ * @param repoRoot Repo root directory.
+ * @param options.overwrite If true, overwrite existing files; if false, skip when either exists.
+ * @returns Which files were created or overwritten.
  */
-export async function generateDocspec(inputPath: string, repoRoot?: string): Promise<void> {
-  logger.debug(`Generating docspec for: ${inputPath}`);
-  const { docspecPath, markdownPath } = resolveInput(inputPath);
-  logger.debug(`Docspec file: ${docspecPath}, target markdown: ${markdownPath}`);
-
-  const content = getDocspecTemplate(markdownPath);
-  logger.debug(`Generated template with ${content.length} characters`);
-
-  const baseDir = repoRoot ? path.resolve(repoRoot) : process.cwd();
+export async function ensureDocAndDocspec(
+  markdownPath: string,
+  repoRoot: string,
+  options: EnsureDocAndDocspecOptions = {}
+): Promise<EnsureDocAndDocspecResult> {
+  const overwrite = options.overwrite ?? false;
+  const normalized = path.normalize(markdownPath).replace(/\\/g, "/");
+  const mdPath = normalized.endsWith(".md") ? normalized : normalized + ".md";
+  const docspecPath = markdownToDocspecPath(mdPath);
+  const baseDir = path.resolve(repoRoot);
+  const mdFull = path.join(baseDir, mdPath);
   const docspecFull = path.join(baseDir, docspecPath);
-  const dir = path.dirname(docspecFull);
-  if (dir !== baseDir && dir !== ".") {
-    logger.debug(`Creating directory: ${dir}`);
-    await fs.mkdir(dir, { recursive: true });
+
+  let markdownCreated = false;
+  let docspecCreated = false;
+
+  const mdExists = await fs.access(mdFull).then(() => true, () => false);
+  if (!mdExists || overwrite) {
+    await fs.mkdir(path.dirname(mdFull), { recursive: true });
+    await fs.writeFile(mdFull, EMPTY_MARKDOWN_CONTENT, "utf-8");
+    markdownCreated = true;
+    logger.debug(`Created or overwrote markdown: ${mdPath}`);
   }
 
-  logger.debug(`Writing file: ${docspecFull}`);
-  await fs.writeFile(docspecFull, content, "utf-8");
-  logger.debug(`File written successfully: ${docspecFull}`);
+  const docspecExists = await fs.access(docspecFull).then(() => true, () => false);
+  if (!docspecExists || overwrite) {
+    const content = getDocspecTemplate(mdPath);
+    await fs.mkdir(path.dirname(docspecFull), { recursive: true });
+    await fs.writeFile(docspecFull, content, "utf-8");
+    docspecCreated = true;
+    logger.debug(`Created or overwrote docspec: ${docspecPath}`);
+  }
+
+  return { markdownCreated, docspecCreated };
 }
 
 /**

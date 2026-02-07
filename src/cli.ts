@@ -1,17 +1,11 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import * as fs from "fs/promises";
 import * as path from "path";
-import { generateDocspec } from "./create";
+import { ensureDocAndDocspec } from "./create";
 import { logger } from "./logger";
 import { markdownToDocspecPath } from "./path-utils";
 import { buildDocspecReviewPrompt } from "./review";
-import {
-  createBranchCommitAndOpenPR,
-  branchSlugFromMarkdownPath,
-} from "./pr";
-
 const program = new Command();
 
 program
@@ -19,22 +13,30 @@ program
   .description("Generate docspec files and prompts under .docspec/")
   .version("0.4.0")
   .option("-v, --verbose", "Enable verbose output with detailed logging")
-  .argument("[markdown_path]", "Path to markdown file (creates .docspec/<path>.docspec.md)")
+  .option("--overwrite", "Overwrite existing markdown and docspec files; default is to skip when either exists")
+  .argument("<markdown_path>", "Path to markdown file (e.g. README.md, docs/deploy.md). Creates the file and .docspec/<path>.docspec.md if missing.")
   .action(async (markdownPath: string) => {
-    if (!markdownPath) return;
     const opts = program.opts();
     logger.setVerbose(opts.verbose || false);
+    const overwrite = Boolean(opts.overwrite);
     try {
       const resolved = path.resolve(process.cwd(), markdownPath).replace(/\\/g, "/");
       const cwd = process.cwd().replace(/\\/g, "/");
       const relativeMd = resolved.startsWith(cwd)
         ? path.relative(cwd, resolved).replace(/\\/g, "/")
         : markdownPath;
-      await generateDocspec(relativeMd);
-      logger.success(`Generated docspec file: ${markdownToDocspecPath(relativeMd)}`);
+      const { markdownCreated, docspecCreated } = await ensureDocAndDocspec(relativeMd, cwd, { overwrite });
+      if (markdownCreated || docspecCreated) {
+        const parts: string[] = [];
+        if (markdownCreated) parts.push(relativeMd);
+        if (docspecCreated) parts.push(markdownToDocspecPath(relativeMd));
+        logger.success(`Created or updated: ${parts.join(", ")}`);
+      } else {
+        logger.info("Both files already exist; nothing to do. Use --overwrite to replace them.");
+      }
     } catch (error) {
       logger.error(
-        `Failed to generate docspec file: ${error instanceof Error ? error.message : String(error)}`
+        `Failed: ${error instanceof Error ? error.message : String(error)}`
       );
       process.exit(1);
     }
@@ -89,46 +91,6 @@ program
         logger.success(`Prompt written to ${outputPath}`);
         console.log(outputPath);
       }
-    } catch (error) {
-      logger.error(error instanceof Error ? error.message : String(error));
-      process.exit(1);
-    }
-  });
-
-program
-  .command("generate")
-  .description(
-    "Write or overwrite a docspec file from the template for a markdown file, then open a pull request so you can edit it."
-  )
-  .argument("<markdown_path>", "Path to the markdown file (e.g. README.md, docs/deploy.md)")
-  .action(async function (this: { opts: () => Record<string, unknown> }, markdownPath: string) {
-    const opts = program.opts();
-    logger.setVerbose(opts.verbose || false);
-    const resolvedMd = path.resolve(process.cwd(), markdownPath).replace(/\\/g, "/");
-    const cwd = process.cwd().replace(/\\/g, "/");
-    const relativeMd = resolvedMd.startsWith(cwd)
-      ? path.relative(cwd, resolvedMd).replace(/\\/g, "/")
-      : markdownPath;
-    const docspecPath = markdownToDocspecPath(relativeMd);
-
-    try {
-      try {
-        await fs.access(resolvedMd);
-      } catch {
-        logger.error(`Markdown file not found: ${resolvedMd}`);
-        process.exit(1);
-      }
-
-      await generateDocspec(relativeMd, cwd);
-      createBranchCommitAndOpenPR({
-        repoRoot: cwd,
-        paths: [docspecPath],
-        branchSlug: branchSlugFromMarkdownPath(relativeMd),
-        commitMessage: `chore: add/update docspec for ${relativeMd}`,
-        prTitle: `chore: add/update docspec for ${relativeMd}`,
-        prBody: `Docspec file created or updated from template. Review and edit as needed.`,
-      });
-      logger.success(`Docspec written to ${docspecPath}; pull request opened.`);
     } catch (error) {
       logger.error(error instanceof Error ? error.message : String(error));
       process.exit(1);

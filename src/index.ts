@@ -2,7 +2,11 @@
  * docspec - Generate docspec files and prompts
  */
 
-export { generateDocspec, generateDocspecContent } from "./create";
+export {
+  generateDocspecContent,
+  ensureDocAndDocspec,
+} from "./create";
+export type { EnsureDocAndDocspecOptions, EnsureDocAndDocspecResult } from "./create";
 export {
   markdownToDocspecPath,
   docspecToMarkdownPath,

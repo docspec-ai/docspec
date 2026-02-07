@@ -1,7 +1,6 @@
 # Docspec Actions
 
-- **docspec-review** – Produces a prompt file for reviewing/syncing markdown with docspecs. Does not run an LLM; you pass the prompt to your own LLM (e.g. Claude).
-- **docspec-generate** – Writes a docspec file from the template and opens a pull request. No LLM.
+- **docspec-review** – Produces a prompt file for reviewing/syncing markdown with docspecs. Does not run an LLM; you pass the prompt to your own LLM (e.g. Claude). The prompt covers syncing existing docspec+markdown (Case A), adding new documentation from changes (Case B), and adding docspecs for existing markdown that has none (Case C).
 
 ## docspec-review
 
@@ -10,12 +9,6 @@ Prepares a prompt file to review/sync markdown with docspecs. Runs `docspec revi
 **Outputs:** `prompt_file` (path to prompt file), `has_prompt` (true/false)
 
 **Inputs:** `pr_number`, `base_sha`, `merge_sha`, `base_ref`, `review_files` (markdown paths for manual review), `changed_files`, `max_docspecs`, `max_diff_chars`, `output_file`
-
-## docspec-generate
-
-Writes or overwrites a docspec file from the template for the given markdown file, then opens a pull request.
-
-**Inputs:** `markdown_file` (required)
 
 ## Usage
 

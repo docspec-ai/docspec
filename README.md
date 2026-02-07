@@ -28,16 +28,22 @@ npm install -g docspec
 
 ### CLI Commands
 
-#### Generate a docspec file (default)
+#### Create doc and docspec (default)
 
-Pass a markdown file path to create (or overwrite) its docspec under `.docspec/`:
+Pass a markdown file path to ensure both the file and its docspec exist:
 
 ```bash
 docspec README.md
 docspec docs/deploy.md
 ```
 
-This creates `.docspec/README.docspec.md` and `.docspec/docs/deploy.docspec.md` using the template at `.docspec/docspec.md` (seeded from the default on first run).
+- If the markdown file is missing, it is created (empty).
+- If the docspec is missing, it is created from the template at `.docspec/docspec.md` (seeded from the default on first run).
+- If either already exists, it is left unchanged. Use `--overwrite` to replace existing files.
+
+```bash
+docspec README.md --overwrite
+```
 
 #### docspec review (prompt for reviewing/syncing docs)
 
@@ -51,29 +57,20 @@ docspec review README.md docs/deploy.md --output prompt.txt
 
 Options: `--max-docspecs`, `--max-diff-chars`. Default output file: `prompt.txt`.
 
-#### docspec generate (docspec from template + PR)
-
-Write or overwrite a docspec file from the template for a markdown file, then open a pull request so you can edit it. No LLM:
-
-```bash
-docspec generate README.md
-docspec generate docs/deploy.md
-```
-
 Add the `--verbose` flag to any command for detailed logging.
 
 ### Library Usage
 
 ```typescript
 import {
-  generateDocspec,
+  ensureDocAndDocspec,
   buildDocspecReviewPrompt,
   markdownToDocspecPath,
   docspecToMarkdownPath,
 } from "docspec";
 
-// Generate a docspec for a markdown file (writes to .docspec/<path>.docspec.md)
-await generateDocspec("README.md");
+// Ensure both markdown and docspec exist (creates empty doc and template docspec if missing)
+await ensureDocAndDocspec("README.md", process.cwd(), { overwrite: false });
 
 // Build prompt for docspec review (e.g. for CI)
 const { prompt, outputPath } = await buildDocspecReviewPrompt({
@@ -89,27 +86,17 @@ const { prompt } = await buildDocspecReviewPrompt({
 });
 ```
 
-The library also exports: `generateDocspecContent()`, `REQUIRED_SECTIONS`, `SECTION_BOILERPLATE`, `logger`, `LogLevel`, `isDocspecPath`, and type `DocspecReviewOptions`.
+The library also exports: `ensureDocAndDocspec()`, `generateDocspecContent()`, `REQUIRED_SECTIONS`, `SECTION_BOILERPLATE`, `logger`, `LogLevel`, `isDocspecPath`, and types `DocspecReviewOptions`, `EnsureDocAndDocspecOptions`, `EnsureDocAndDocspecResult`.
 
 ## GitHub Actions
 
 Docspec’s actions **only produce prompt files**; they do not run an LLM or require API keys.
 
-- **docspec-review** (`.github/actions/docspec-review`) – Produces a prompt file for reviewing/syncing docs. Runs `docspec review` with PR context or specific `review_files`. Outputs `prompt_file` and `has_prompt`. Use with your own LLM (e.g. Claude).
-- **docspec-generate** (`.github/actions/docspec-generate`) – Writes a docspec from the template and opens a PR. Runs `docspec generate <markdown_file>`. No LLM.
+- **docspec-review** (`.github/actions/docspec-review`) – Produces a prompt file for reviewing/syncing docs. Runs `docspec review` with PR context or specific `review_files`. Outputs `prompt_file` and `has_prompt`. Use with your own LLM (e.g. Claude). The prompt covers syncing existing docspec+markdown, adding new documentation from changes, and adding docspecs for existing markdown that has none.
 
 ### Example: run docspec review then Claude
 
-This repo’s [`.github/workflows/docspec-review.yml`](.github/workflows/docspec-check.yml) runs when a PR is merged (or manually with optional review_files): it prepares the prompt with `docspec review`, then runs the [official Claude Code Action](https://github.com/anthropics/claude-code-action) with that prompt. Add `ANTHROPIC_API_KEY` to your repository secrets if you want the Claude step to run.
-
-### Example: docspec generate (template + PR)
-
-```yaml
-- uses: actions/checkout@v4
-- uses: docspec-ai/docspec/.github/actions/docspec-generate@main
-  with:
-    markdown_file: README.md
-```
+This repo’s [`.github/workflows/docspec-review.yml`](.github/workflows/docspec-review.yml) runs when a PR is merged (or manually with optional review_files): it prepares the prompt with `docspec review`, then runs the [official Claude Code Action](https://github.com/anthropics/claude-code-action) with that prompt. Add `ANTHROPIC_API_KEY` to your repository secrets if you want the Claude step to run.
 
 ## Development
 

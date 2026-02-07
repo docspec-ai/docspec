@@ -3,7 +3,6 @@ import * as path from "path";
 import * as os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { generateDocspec } from "../create";
 
 const execAsync = promisify(exec);
 
@@ -61,16 +60,21 @@ describe("CLI", () => {
       expect(content).toContain("{{TARGET_FILE}}");
     });
 
-    it("should generate a new docspec file under .docspec/ for markdown path", async () => {
+    it("should create both empty markdown and docspec for markdown path", async () => {
       const result = await runCli("new.md");
 
       expect(result.code).toBe(0);
       expect(result.stdout).toContain("✅");
       expect(result.stdout).toContain(".docspec/new.docspec.md");
 
-      const filePath = path.join(tempDir, ".docspec", "new.docspec.md");
-      const exists = await fs.access(filePath).then(() => true).catch(() => false);
-      expect(exists).toBe(true);
+      const mdPath = path.join(tempDir, "new.md");
+      const docspecPath = path.join(tempDir, ".docspec", "new.docspec.md");
+      const mdExists = await fs.access(mdPath).then(() => true).catch(() => false);
+      const docspecExists = await fs.access(docspecPath).then(() => true).catch(() => false);
+      expect(mdExists).toBe(true);
+      expect(docspecExists).toBe(true);
+      const mdContent = await fs.readFile(mdPath, "utf-8");
+      expect(mdContent).toBe("");
     });
 
     it("should generate file with correct content", async () => {
@@ -98,17 +102,35 @@ describe("CLI", () => {
       const content = await fs.readFile(filePath, "utf-8");
       expect(content).toContain("# DOCSPEC: [my-awesome-doc.md](/my-awesome-doc.md)");
     });
-  });
 
-  describe("generate subcommand (docspec + PR)", () => {
-    it("should create docspec file then fail without git repo when opening PR", async () => {
-      await fs.writeFile(path.join(tempDir, "README.md"), "# Hello", "utf-8");
-      const result = await runCli("generate README.md");
+    it("should do nothing when both files exist (no --overwrite)", async () => {
+      await fs.writeFile(path.join(tempDir, "existing.md"), "# Existing", "utf-8");
+      await fs.mkdir(path.join(tempDir, ".docspec"), { recursive: true });
+      await fs.writeFile(path.join(tempDir, ".docspec", "existing.docspec.md"), "# DOCSPEC", "utf-8");
 
-      const docspecPath = path.join(tempDir, ".docspec", "README.docspec.md");
-      const docspecExists = await fs.access(docspecPath).then(() => true).catch(() => false);
-      expect(docspecExists).toBe(true);
-      expect(result.code).not.toBe(0);
+      const result = await runCli("existing.md");
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain("already exist");
+      const mdContent = await fs.readFile(path.join(tempDir, "existing.md"), "utf-8");
+      expect(mdContent).toBe("# Existing");
+      const docspecContent = await fs.readFile(path.join(tempDir, ".docspec", "existing.docspec.md"), "utf-8");
+      expect(docspecContent).toBe("# DOCSPEC");
+    });
+
+    it("should overwrite both when --overwrite", async () => {
+      await fs.writeFile(path.join(tempDir, "overwrite.md"), "# Old", "utf-8");
+      await fs.mkdir(path.join(tempDir, ".docspec"), { recursive: true });
+      await fs.writeFile(path.join(tempDir, ".docspec", "overwrite.docspec.md"), "# Old docspec", "utf-8");
+
+      const result = await runCli("overwrite.md --overwrite");
+
+      expect(result.code).toBe(0);
+      const mdContent = await fs.readFile(path.join(tempDir, "overwrite.md"), "utf-8");
+      expect(mdContent).toBe("");
+      const docspecContent = await fs.readFile(path.join(tempDir, ".docspec", "overwrite.docspec.md"), "utf-8");
+      expect(docspecContent).toContain("# DOCSPEC:");
+      expect(docspecContent).toContain("Document Purpose");
     });
   });
 
@@ -119,8 +141,8 @@ describe("CLI", () => {
       expect(result.code).toBe(0);
       expect(result.stdout).toContain("Usage:");
       expect(result.stdout).toContain("review");
-      expect(result.stdout).toContain("generate");
       expect(result.stdout).toContain("markdown_path");
+      expect(result.stdout).toContain("overwrite");
     });
 
     it("should show version", async () => {
