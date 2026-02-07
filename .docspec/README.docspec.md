@@ -22,7 +22,7 @@ This README serves as the primary entry point and comprehensive documentation fo
 
 - **What is docspec?** - A specification format and toolchain for agent-maintained documentation
 - **How do I install it?** - npm installation methods (local and global)
-- **How do I use it?** - CLI commands (`docspec <filename.md>` to create doc + docspec, `docspec review`) and TypeScript API usage
+- **How do I use it?** - CLI commands (`docspec create <filename.md>` to create doc + docspec, `docspec review`) and TypeScript API usage
 - **How do I integrate it?** - Pre-commit hooks, GitHub Actions (prompt-only; you run your own LLM)
 - **What is the docspec format?** - High-level overview and reference to docspec-format.md
 - **How do I develop with it?** - Test and build commands
@@ -77,7 +77,7 @@ The README must contain these sections in order:
    - Constraint: Keep concise, no version-specific details
 
 4. **Usage**: How to use docspec with subsections:
-   - **CLI Commands**: Document default `docspec <markdown_path> [--overwrite]` (creates empty doc and docspec if missing; `--overwrite` replaces only the docspec, not the markdown) and `docspec review` with examples matching src/cli.ts exactly
+   - **CLI Commands**: Document `docspec create <markdown_path> [--overwrite]` (creates empty doc and docspec if missing; `--overwrite` replaces only the docspec, not the markdown) and `docspec review` with examples matching src/cli.ts exactly
    - **Library Usage**: TypeScript import examples showing exported functions and types from src/index.ts
    - Constraint: Code examples must be actual working commands from the codebase
 
@@ -104,7 +104,7 @@ The README must contain these sections in order:
 - Workflow references should use actual file names (.github/workflows/docspec-review.yml)
 
 **DO:**
-- Use actual command examples: `docspec README.md`, `docspec README.md --overwrite`, `docspec review --base X --merge Y`
+- Use actual command examples: `docspec create README.md`, `docspec create README.md --overwrite`, `docspec review --base X --merge Y`
 - Reference source files when describing behavior
 - Link to definitive sources: action.yml for configuration options, docspec-format.md for format details
 

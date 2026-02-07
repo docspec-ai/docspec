@@ -28,13 +28,13 @@ npm install -g docspec
 
 ### CLI Commands
 
-#### Create doc and docspec (default)
+#### Create doc and docspec
 
-Pass a markdown file path to ensure both the file and its docspec exist:
+Use the `create` command with a markdown file path to ensure both the file and its docspec exist:
 
 ```bash
-docspec README.md
-docspec docs/deploy.md
+docspec create README.md
+docspec create docs/deploy.md
 ```
 
 - If the markdown file is missing, it is created (empty).
@@ -42,7 +42,7 @@ docspec docs/deploy.md
 - If either already exists, it is left unchanged. Use `--overwrite` to replace only the docspec (markdown is never overwritten).
 
 ```bash
-docspec README.md --overwrite
+docspec create README.md --overwrite
 ```
 
 #### docspec review (prompt for reviewing/syncing docs)
