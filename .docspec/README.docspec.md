@@ -22,7 +22,7 @@ This README serves as the primary entry point and comprehensive documentation fo
 
 - **What is docspec?** - A specification format and toolchain for agent-maintained documentation
 - **How do I install it?** - npm installation methods (local and global)
-- **How do I use it?** - CLI commands (`docspec <filename.md>`, `docspec changed`, `docspec generate`) and TypeScript API usage
+- **How do I use it?** - CLI commands (`docspec <filename.md>` to create doc + docspec, `docspec review`) and TypeScript API usage
 - **How do I integrate it?** - Pre-commit hooks, GitHub Actions (prompt-only; you run your own LLM)
 - **What is the docspec format?** - High-level overview and reference to docspec-format.md
 - **How do I develop with it?** - Test and build commands
@@ -44,7 +44,7 @@ This README serves as the primary entry point and comprehensive documentation fo
 - **Validation logic** (src/validator.ts): New validation rules, changed error messages, modified validation behavior
 - **Docspec format definition** (docspec-format.md): Changes to required sections, section names, validation rules
 - **GitHub Action configuration** (action.yml): New inputs/outputs, changed defaults, modified descriptions
-- **Workflow files** (.github/workflows/docspec-check.yml, docspec-generate.yml): Workflow name changes, trigger changes, new steps or configuration
+- **Workflow files** (.github/workflows/docspec-review.yml): Workflow name changes, trigger changes, new steps or configuration
 - **Installation method** (package.json): Package name changes, new installation requirements
 - **File naming convention**: Docspec files live under .docspec/ (e.g. .docspec/README.docspec.md for README.md)
 - **Required sections** (src/constants.ts): Changes to REQUIRED_SECTIONS array or section definitions
@@ -77,13 +77,13 @@ The README must contain these sections in order:
    - Constraint: Keep concise, no version-specific details
 
 4. **Usage**: How to use docspec with subsections:
-   - **CLI Commands**: Document default `docspec <markdown_path>`, `docspec changed`, and `docspec generate` with examples matching src/cli.ts exactly
+   - **CLI Commands**: Document default `docspec <markdown_path> [--overwrite]` (creates empty doc and docspec if missing; `--overwrite` replaces only the docspec, not the markdown) and `docspec review` with examples matching src/cli.ts exactly
    - **Library Usage**: TypeScript import examples showing exported functions and types from src/index.ts
    - Constraint: Code examples must be actual working commands from the codebase
 
 5. **Pre-commit Integration**: How to use with pre-commit hooks (target .docspec/*.docspec.md)
 
-6. **GitHub Actions**: Prompt-only actions (docspec-changed, docspec-generate); example workflow that runs docspec-changed then Claude; no API keys required by docspec itself
+6. **GitHub Actions**: Prompt-only action (docspec-review); example workflow that runs docspec-review then Claude; no API keys required by docspec itself
 
 7. **Development**: Commands for contributors (npm test, npm run build)
 
@@ -101,10 +101,10 @@ The README must contain these sections in order:
 - Library API examples must only show functions/types exported from src/index.ts
 - Action inputs/outputs must match action.yml exactly
 - File paths: docspecs under .docspec/ (e.g. .docspec/README.docspec.md for README.md)
-- Workflow references should use actual file names (.github/workflows/docspec-check.yml, docspec-generate.yml)
+- Workflow references should use actual file names (.github/workflows/docspec-review.yml)
 
 **DO:**
-- Use actual command examples: `docspec README.md`, `docspec generate README.md`, `docspec changed --base X --merge Y`
+- Use actual command examples: `docspec README.md`, `docspec README.md --overwrite`, `docspec review --base X --merge Y`
 - Reference source files when describing behavior
 - Link to definitive sources: action.yml for configuration options, docspec-format.md for format details
 
@@ -118,7 +118,7 @@ The README must contain these sections in order:
 This README deliberately excludes:
 
 **Internal implementation details:**
-- TypeScript implementation internals (validator, create, template, constants, path-utils, changed, generate)
+- TypeScript implementation internals (validator, create, template, constants, path-utils, review, generate)
 - Validation algorithm implementation details
 - Template rendering and substitution logic
 

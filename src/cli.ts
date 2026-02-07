@@ -2,12 +2,10 @@
 
 import { Command } from "commander";
 import * as path from "path";
-import { generateDocspec } from "./create";
+import { ensureDocAndDocspec } from "./create";
 import { logger } from "./logger";
 import { markdownToDocspecPath } from "./path-utils";
-import { buildDocspecChangedPrompt } from "./changed";
-import { buildDocspecGeneratePrompts } from "./generate";
-
+import { buildDocspecReviewPrompt } from "./review";
 const program = new Command();
 
 program
@@ -15,32 +13,41 @@ program
   .description("Generate docspec files and prompts under .docspec/")
   .version("0.4.0")
   .option("-v, --verbose", "Enable verbose output with detailed logging")
-  .argument("[markdown_path]", "Path to markdown file (creates .docspec/<path>.docspec.md)")
+  .option("--overwrite", "Overwrite existing docspec file only (markdown is never overwritten); default is to skip when docspec exists")
+  .argument("<markdown_path>", "Path to markdown file (e.g. README.md, docs/deploy.md). Creates the file and .docspec/<path>.docspec.md if missing.")
   .action(async (markdownPath: string) => {
-    if (!markdownPath) return;
     const opts = program.opts();
     logger.setVerbose(opts.verbose || false);
+    const overwrite = Boolean(opts.overwrite);
     try {
       const resolved = path.resolve(process.cwd(), markdownPath).replace(/\\/g, "/");
       const cwd = process.cwd().replace(/\\/g, "/");
       const relativeMd = resolved.startsWith(cwd)
         ? path.relative(cwd, resolved).replace(/\\/g, "/")
         : markdownPath;
-      await generateDocspec(relativeMd);
-      logger.success(`Generated docspec file: ${markdownToDocspecPath(relativeMd)}`);
+      const { markdownCreated, docspecCreated } = await ensureDocAndDocspec(relativeMd, cwd, { overwrite });
+      if (markdownCreated || docspecCreated) {
+        const parts: string[] = [];
+        if (markdownCreated) parts.push(relativeMd);
+        if (docspecCreated) parts.push(markdownToDocspecPath(relativeMd));
+        logger.success(`Created or updated: ${parts.join(", ")}`);
+      } else {
+        logger.info("Both files already exist; nothing to do. Use --overwrite to replace them.");
+      }
     } catch (error) {
       logger.error(
-        `Failed to generate docspec file: ${error instanceof Error ? error.message : String(error)}`
+        `Failed: ${error instanceof Error ? error.message : String(error)}`
       );
       process.exit(1);
     }
   });
 
 program
-  .command("changed")
+  .command("review")
   .description(
-    "Generate a prompt to sync markdown files with their docspecs based on changed files (for use with an external LLM)"
+    "Generate a prompt to review/sync markdown with docspecs (for use with an external LLM). Use PR context (--base/--merge) or specify markdown file(s) to review."
   )
+  .argument("[markdown_paths...]", "Markdown file(s) to review (e.g. README.md). If omitted, use --base/--merge or --changed-files for PR-based discovery.")
   .option(
     "--changed-files <paths>",
     "Comma-separated list of changed file paths (or omit and use --base/--merge for git diff)"
@@ -50,21 +57,25 @@ program
   .option("--output <file>", "Write prompt to this file", "prompt.txt")
   .option("--max-docspecs <n>", "Max docspecs to include", "10")
   .option("--max-diff-chars <n>", "Max characters of diff to include", "120000")
-  .action(async function (this: { opts: () => Record<string, unknown> }) {
+  .action(async function (this: { opts: () => Record<string, unknown> }, markdownPaths: string[] = []) {
     const opts = program.opts();
     logger.setVerbose(opts.verbose || false);
     const cmdOpts = this.opts();
+    const reviewFiles = markdownPaths.length > 0 ? markdownPaths : undefined;
     const changedFiles = cmdOpts.changedFiles
       ? String(cmdOpts.changedFiles).split(",").map((s: string) => s.trim()).filter(Boolean)
       : undefined;
     const base = cmdOpts.base as string | undefined;
     const merge = cmdOpts.merge as string | undefined;
-    if (!changedFiles?.length && (!base || !merge)) {
-      logger.error("Either provide --changed-files or both --base and --merge for git diff.");
+    if (!reviewFiles?.length && !changedFiles?.length && (!base || !merge)) {
+      logger.error(
+        "Provide markdown file(s) to review (e.g. docspec review README.md), or --changed-files, or both --base and --merge for git diff."
+      );
       process.exit(1);
     }
     try {
-      const { prompt, outputPath } = await buildDocspecChangedPrompt({
+      const { prompt, outputPath } = await buildDocspecReviewPrompt({
+        reviewFiles,
         changedFiles,
         base,
         merge,
@@ -79,42 +90,6 @@ program
       if (outputPath) {
         logger.success(`Prompt written to ${outputPath}`);
         console.log(outputPath);
-      }
-    } catch (error) {
-      logger.error(error instanceof Error ? error.message : String(error));
-      process.exit(1);
-    }
-  });
-
-program
-  .command("generate")
-  .description(
-    "Generate a new docspec for a markdown file and output a prompt for an external LLM to fill/improve it"
-  )
-  .argument("<markdown_path>", "Path to the markdown file (e.g. README.md, docs/deploy.md)")
-  .option("--overwrite", "Overwrite existing docspec file")
-  .option("--output-prompt <file>", "Write implementation prompt to this file", "prompt.txt")
-  .option("--output-plan <file>", "Write plan prompt to this file (optional)")
-  .action(async function (this: { opts: () => Record<string, unknown> }, markdownPath: string) {
-    const opts = program.opts();
-    logger.setVerbose(opts.verbose || false);
-    const cmdOpts = this.opts();
-    const resolvedMd = path.resolve(process.cwd(), markdownPath).replace(/\\/g, "/");
-    const cwd = process.cwd().replace(/\\/g, "/");
-    const relativeMd = resolvedMd.startsWith(cwd)
-      ? path.relative(cwd, resolvedMd).replace(/\\/g, "/")
-      : markdownPath;
-    try {
-      const result = await buildDocspecGeneratePrompts({
-        markdownPath: relativeMd,
-        overwrite: cmdOpts.overwrite === true,
-        outputPromptPath: (cmdOpts.outputPrompt as string) || "prompt.txt",
-        outputPlanPath: cmdOpts.outputPlan as string | undefined,
-      });
-      logger.success(`Docspec written to ${markdownToDocspecPath(relativeMd)}`);
-      if (result.outputPromptPath) {
-        logger.success(`Prompt written to ${result.outputPromptPath}`);
-        console.log(result.outputPromptPath);
       }
     } catch (error) {
       logger.error(error instanceof Error ? error.message : String(error));

@@ -1,10 +1,10 @@
-name: 'Docspec Changed'
-description: 'Prepare a prompt file to sync markdown with docspecs after PR merges (no LLM; feed prompt to your own LLM CLI)'
+name: 'Docspec Review'
+description: 'Prepare a prompt file to review/sync markdown with docspecs (no LLM; feed prompt to your own LLM CLI). Use PR context or specific markdown file(s).'
 
 inputs:
   # PR context (for git diff; optional if provided by workflow)
   pr_number:
-    description: 'PR number that was merged. If not provided, will be extracted from event context.'
+    description: 'PR number that was merged (for workflow_dispatch). If not provided, will be extracted from event context.'
     required: false
   base_sha:
     description: 'Base SHA of the merged PR. If not provided, will be extracted from event context.'
@@ -15,9 +15,12 @@ inputs:
   base_ref:
     description: 'Base branch name (e.g., main). If not provided, will be extracted from event context.'
     required: false
-  # Alternative: provide changed files directly (comma- or newline-separated)
+  # Manual review: specific markdown file(s) to review (comma- or newline-separated)
+  review_files:
+    description: 'Optional list of markdown file paths to review (e.g. README.md, docs/deploy.md). If set, only these docspecs are included; no PR diff.'
+    required: false
   changed_files:
-    description: 'Optional list of changed file paths (comma- or newline-separated). If set, overrides base_sha/merge_sha for discovery.'
+    description: 'Optional list of changed file paths (comma- or newline-separated). If set with base/merge, used for discovery.'
     required: false
   max_docspecs:
     description: 'Maximum number of docspec files to include in the prompt'
@@ -75,7 +78,7 @@ runs:
       shell: bash
       run: npm install -g docspec
 
-    - name: Prepare docspec changed prompt
+    - name: Prepare docspec review prompt
       id: prepare
       shell: bash
       run: |
@@ -83,15 +86,20 @@ runs:
         PROMPT_FILE="$REPO_ROOT/${{ inputs.output_file }}"
         cd "$REPO_ROOT"
 
-        if [ -n "${{ inputs.changed_files }}" ]; then
+        if [ -n "${{ inputs.review_files }}" ]; then
+          FILES=$(echo "${{ inputs.review_files }}" | tr '\n' ' ' | sed 's/  */ /g' | tr ',' ' ' | sed 's/  */ /g' | xargs)
+          docspec review $FILES --output "${{ inputs.output_file }}" \
+            --max-docspecs "${{ inputs.max_docspecs }}" || true
+        elif [ -n "${{ inputs.changed_files }}" ]; then
           CHANGED=$(echo "${{ inputs.changed_files }}" | tr '\n' ',' | sed 's/,,*/,/g' | sed 's/^,//;s/,$//')
-          docspec changed --changed-files "$CHANGED" --output "${{ inputs.output_file }}" \
+          docspec review --changed-files "$CHANGED" --output "${{ inputs.output_file }}" \
             --max-docspecs "${{ inputs.max_docspecs }}" \
-            --max-diff-chars "${{ inputs.max_diff_chars }}" || true
+            --max-diff-chars "${{ inputs.max_diff_chars }}" \
+            --base "${{ steps.pr_details.outputs.base_sha }}" --merge "${{ steps.pr_details.outputs.merge_sha }}" || true
         else
           BASE="${{ steps.pr_details.outputs.base_sha }}"
           MERGE="${{ steps.pr_details.outputs.merge_sha }}"
-          docspec changed --base "$BASE" --merge "$MERGE" --output "${{ inputs.output_file }}" \
+          docspec review --base "$BASE" --merge "$MERGE" --output "${{ inputs.output_file }}" \
             --max-docspecs "${{ inputs.max_docspecs }}" \
             --max-diff-chars "${{ inputs.max_diff_chars }}" || true
         fi
