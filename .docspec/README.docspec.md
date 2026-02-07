@@ -77,7 +77,7 @@ The README must contain these sections in order:
    - Constraint: Keep concise, no version-specific details
 
 4. **Usage**: How to use docspec with subsections:
-   - **CLI Commands**: Document default `docspec <markdown_path> [--overwrite]` (creates empty doc and docspec if missing) and `docspec review` with examples matching src/cli.ts exactly
+   - **CLI Commands**: Document default `docspec <markdown_path> [--overwrite]` (creates empty doc and docspec if missing; `--overwrite` replaces only the docspec, not the markdown) and `docspec review` with examples matching src/cli.ts exactly
    - **Library Usage**: TypeScript import examples showing exported functions and types from src/index.ts
    - Constraint: Code examples must be actual working commands from the codebase
 

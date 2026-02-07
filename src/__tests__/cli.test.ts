@@ -118,7 +118,7 @@ describe("CLI", () => {
       expect(docspecContent).toBe("# DOCSPEC");
     });
 
-    it("should overwrite both when --overwrite", async () => {
+    it("should overwrite only docspec when --overwrite (markdown preserved)", async () => {
       await fs.writeFile(path.join(tempDir, "overwrite.md"), "# Old", "utf-8");
       await fs.mkdir(path.join(tempDir, ".docspec"), { recursive: true });
       await fs.writeFile(path.join(tempDir, ".docspec", "overwrite.docspec.md"), "# Old docspec", "utf-8");
@@ -127,7 +127,7 @@ describe("CLI", () => {
 
       expect(result.code).toBe(0);
       const mdContent = await fs.readFile(path.join(tempDir, "overwrite.md"), "utf-8");
-      expect(mdContent).toBe("");
+      expect(mdContent).toBe("# Old");
       const docspecContent = await fs.readFile(path.join(tempDir, ".docspec", "overwrite.docspec.md"), "utf-8");
       expect(docspecContent).toContain("# DOCSPEC:");
       expect(docspecContent).toContain("Document Purpose");

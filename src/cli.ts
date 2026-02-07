@@ -13,7 +13,7 @@ program
   .description("Generate docspec files and prompts under .docspec/")
   .version("0.4.0")
   .option("-v, --verbose", "Enable verbose output with detailed logging")
-  .option("--overwrite", "Overwrite existing markdown and docspec files; default is to skip when either exists")
+  .option("--overwrite", "Overwrite existing docspec file only (markdown is never overwritten); default is to skip when docspec exists")
   .argument("<markdown_path>", "Path to markdown file (e.g. README.md, docs/deploy.md). Creates the file and .docspec/<path>.docspec.md if missing.")
   .action(async (markdownPath: string) => {
     const opts = program.opts();

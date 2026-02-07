@@ -10,7 +10,7 @@ import { markdownToDocspecPath } from "./path-utils";
 const EMPTY_MARKDOWN_CONTENT = "";
 
 export interface EnsureDocAndDocspecOptions {
-  /** If true, overwrite existing markdown and docspec files. If false, skip when either exists. */
+  /** If true, overwrite existing docspec file (markdown is never overwritten). If false, skip when docspec exists. */
   overwrite?: boolean;
 }
 
@@ -21,11 +21,11 @@ export interface EnsureDocAndDocspecResult {
 
 /**
  * Ensure both the markdown file and its docspec exist. Creates an empty markdown file and a
- * docspec from the template when missing. If either file already exists, does nothing unless
- * options.overwrite is true.
+ * docspec from the template when missing. Markdown is only created when missing (never overwritten).
+ * Docspec is overwritten when options.overwrite is true.
  * @param markdownPath Repo-relative markdown path (e.g. README.md, docs/deploy.md).
  * @param repoRoot Repo root directory.
- * @param options.overwrite If true, overwrite existing files; if false, skip when either exists.
+ * @param options.overwrite If true, overwrite existing docspec; if false, skip when docspec exists. Does not affect markdown.
  * @returns Which files were created or overwritten.
  */
 export async function ensureDocAndDocspec(
@@ -45,11 +45,11 @@ export async function ensureDocAndDocspec(
   let docspecCreated = false;
 
   const mdExists = await fs.access(mdFull).then(() => true, () => false);
-  if (!mdExists || overwrite) {
+  if (!mdExists) {
     await fs.mkdir(path.dirname(mdFull), { recursive: true });
     await fs.writeFile(mdFull, EMPTY_MARKDOWN_CONTENT, "utf-8");
     markdownCreated = true;
-    logger.debug(`Created or overwrote markdown: ${mdPath}`);
+    logger.debug(`Created markdown: ${mdPath}`);
   }
 
   const docspecExists = await fs.access(docspecFull).then(() => true, () => false);

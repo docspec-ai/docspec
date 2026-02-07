@@ -39,7 +39,7 @@ docspec docs/deploy.md
 
 - If the markdown file is missing, it is created (empty).
 - If the docspec is missing, it is created from the template at `.docspec/docspec.md` (seeded from the default on first run).
-- If either already exists, it is left unchanged. Use `--overwrite` to replace existing files.
+- If either already exists, it is left unchanged. Use `--overwrite` to replace only the docspec (markdown is never overwritten).
 
 ```bash
 docspec README.md --overwrite
