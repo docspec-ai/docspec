@@ -1,10 +1,10 @@
 ## When updating each document
 
-* Compare the target document against this docspec.
-* Update the target document to satisfy this docspec.
+* Compare the target document against the docspec.
+* Update the target document to satisfy the docspec.
 * Make the smallest changes necessary.
 * Preserve existing content that already complies.
-* Do not invent content, sections, or facts not implied by this docspec or the repository.
+* Do not invent content, sections, or facts not implied by the docspec or the repository.
 
 ---
 
