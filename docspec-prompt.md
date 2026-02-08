@@ -10,12 +10,11 @@
 
 ## Steps
 
-1. Explore the repository using your available tools to understand the codebase context
-2. Understand how the code changes in the diff relate to each docspec's requirements
-3. Assess whether the changes warrant **new documentation**: one or more new markdown files that do not exist yet (e.g. to document a new API, feature, or module). If so, create the new markdown file(s), run `docspec create <path>` for each to create the doc and docspec(s), edit as needed, and include in your commit and PR.
+1. For each docspec listed above, assess whether its target markdown satisfies the docspec. Compare the markdown to the docspec's **Expected Structure** (section 3) and **Document Purpose** (section 1)—section order, required sections, and content. If it does not match, update the markdown. Any diff or change list is context only; the task is always doc-vs-docspec.
+2. Explore the repository as needed to understand context (e.g. for new docs or docspecs).
+3. Assess whether the scope warrants **new documentation**: one or more new markdown files that do not exist yet. If so, create the file(s), run `docspec create <path>` for each, edit as needed, and include in your commit and PR.
 4. For any markdown file listed above as having no docspec, decide whether it should have one. If so, run `docspec create <path>` and include the new docspec file in your PR.
-5. For each markdown file listed above (with an existing docspec), check if it already satisfies its docspec given the code changes. You must compare the target markdown to that docspec's **Expected Structure** (section 3) and **Document Purpose** (section 1): section order, required sections, and content requirements. If the markdown's structure or content does not match the docspec, update the markdown. Do not skip this comparison by reasoning only about recent code or workflow changes.
-6. Only update markdown files if changes are actually necessary to satisfy their docspecs - avoid making unnecessary changes
-7. Use the Edit tool to modify markdown files directly if changes are needed
-8. When you have made any documentation changes: create a new branch, commit your changes, push the branch, and open a pull request using the gh CLI (e.g. gh pr create). If you made no file changes, do not create a branch or PR—treat the branch/PR step as not applicable and do not mark it complete as if a PR was opened.
-9. Do not provide any text output - files are modified directly using tools
+5. Only update markdown files when necessary to satisfy their docspecs—avoid unnecessary changes.
+6. Use the Edit tool to modify markdown files directly when changes are needed.
+7. When you have made any documentation changes: create a new branch, commit your changes, push the branch, and open a pull request using the gh CLI (e.g. gh pr create). If you made no file changes, do not create a branch or PR—treat the branch/PR step as not applicable and do not mark it complete as if a PR was opened.
+8. Do not provide any text output—files are modified directly using tools.

@@ -288,16 +288,11 @@ export async function buildDocspecReviewPrompt(
   const scopePaths = useReviewFiles ? (options.reviewFiles!.map((p) => path.normalize(p).replace(/\\/g, "/")) as string[]) : changedFiles;
   const markdownWithoutDocspec = findMarkdownWithoutDocspec(repoRoot, scopePaths, maxDocspecs);
 
-  const introLine = useReviewFiles
-    ? "Review the following docspec file(s) and their target markdown. For each, check if the markdown satisfies the docspec and update if needed:"
-    : "The following docspec files were discovered based on the PR changes. For each docspec, check if its target markdown file needs to be updated based on the code changes:";
-
-  const fileOnlyInstruction =
-    useReviewFiles &&
-    "When reviewing specific files (no PR diff), your primary task is to compare each target markdown below to its docspec's Expected Structure (section 3) and update the markdown so section order and content match the docspec. Do not skip this by analyzing only recent commits or other files.";
+  const introLine =
+    "For each docspec below, compare its target markdown to the docspec (Expected Structure and Document Purpose) and update the markdown if it does not satisfy the docspec. Any diff or change list is context only.";
 
   const parts: string[] = [
-    "Merged PR diff (context):",
+    "Context (recent changes, if any):",
     "<diff>",
     diffText,
     "</diff>",
@@ -306,9 +301,6 @@ export async function buildDocspecReviewPrompt(
 
   if (candidates.length > 0) {
     parts.push(introLine, "", "");
-    if (fileOnlyInstruction) {
-      parts.push(fileOnlyInstruction, "", "");
-    }
   } else if (markdownWithoutDocspec.length > 0 || (diffText && diffText !== "(no diff available)")) {
     parts.push(
       "No existing docspec+markdown pairs in scope for this run. Use the diff and the task list below to assess whether to add new documentation (Case B) or add docspecs for existing markdown (Case C).",
