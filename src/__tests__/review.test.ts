@@ -71,7 +71,7 @@ describe("review", () => {
     });
 
     expect(prompt).toContain("(no diff available)");
-    expect(prompt).toContain("Review the following docspec file(s)");
+    expect(prompt).toContain("For each docspec below, compare its target markdown to the docspec");
     expect(prompt).toContain("## Docspec: .docspec/foo.docspec.md");
     expect(prompt).toContain("Target markdown: foo.md");
     expect(prompt).toContain(docspecContent);
