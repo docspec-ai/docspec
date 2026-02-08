@@ -7,6 +7,26 @@ import { docspecToMarkdownPath, isDocspecPath, markdownToDocspecPath } from "./p
 const DEFAULT_MAX_DOCSPECS = 10;
 const DEFAULT_MAX_DIFF_CHARS = 120000;
 
+const REVIEW_TASK_FILENAME = "review-task.md";
+
+/**
+ * Get review task content from .docspec/review-task.md, seeding from the bundled
+ * docspec-review-task.md if the user file does not exist.
+ */
+async function getReviewTaskContent(repoRoot: string): Promise<string> {
+  const userPath = path.join(repoRoot, ".docspec", REVIEW_TASK_FILENAME);
+  const defaultPath = path.join(__dirname, "..", "docspec-review-task.md");
+  try {
+    return await fs.readFile(userPath, "utf-8");
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+  }
+  const defaultContent = await fs.readFile(defaultPath, "utf-8");
+  await fs.mkdir(path.join(repoRoot, ".docspec"), { recursive: true });
+  await fs.writeFile(userPath, defaultContent, "utf-8");
+  return defaultContent;
+}
+
 export interface DocspecReviewOptions {
   /** Markdown file path(s) to review (repo-relative). When set, only these docspecs are included; no PR diff. */
   reviewFiles?: string[];
@@ -305,18 +325,8 @@ export async function buildDocspecReviewPrompt(
     );
   }
 
-  parts.push(
-    "Task:",
-    "1. Explore the repository using your available tools to understand the codebase context",
-    "2. Understand how the code changes in the diff relate to each docspec's requirements",
-    "3. For each markdown file listed above (with an existing docspec), check if it already satisfies its docspec given the code changes",
-    "4. Only update markdown files if changes are actually necessary to satisfy their docspecs - avoid making unnecessary changes",
-    "5. Use the Edit tool to modify markdown files directly if changes are needed",
-    "6. When you have made any documentation changes: create a new branch, commit your changes, push the branch, and open a pull request using the gh CLI (e.g. gh pr create). If you made no file changes, do not create a branch or PR.",
-    "7. Do not provide any text output - files are modified directly using tools",
-    "8. Assess whether the changes warrant **new documentation**: one or more new markdown files that do not exist yet (e.g. to document a new API, feature, or module). If so, create the new markdown file(s), run `docspec create <path>` for each to create the doc and docspec(s), edit as needed, and include in your commit and PR.",
-    "9. For any markdown file listed above as having no docspec, decide whether it should have one. If so, run `docspec create <path>` and include the new docspec file in your PR."
-  );
+  const reviewTaskContent = await getReviewTaskContent(repoRoot);
+  parts.push(reviewTaskContent.trim());
 
   const prompt = parts.join("\n");
   const outPath = options.outputPath ? path.resolve(repoRoot, options.outputPath) : null;

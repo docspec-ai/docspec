@@ -55,7 +55,7 @@ docspec review --changed-files "src/foo.ts,README.md" --base <base> --merge <mer
 docspec review README.md docs/deploy.md --output prompt.txt
 ```
 
-Options: `--max-docspecs`, `--max-diff-chars`. Default output file: `prompt.txt`.
+Options: `--max-docspecs`, `--max-diff-chars`. Default output file: `prompt.txt`. The **review task** (instructions appended to the prompt) is customizable: it lives at **`.docspec/review-task.md`**. If that file does not exist, it is seeded from the bundled default ([`docspec-review-task.md`](docspec-review-task.md)). Edit `.docspec/review-task.md` to change the task instructions.
 
 Add the `--verbose` flag to any command for detailed logging.
 
