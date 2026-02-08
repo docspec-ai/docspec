@@ -17,5 +17,5 @@
 5. For each markdown file listed above (with an existing docspec), check if it already satisfies its docspec given the code changes
 6. Only update markdown files if changes are actually necessary to satisfy their docspecs - avoid making unnecessary changes
 7. Use the Edit tool to modify markdown files directly if changes are needed
-8. When you have made any documentation changes: create a new branch, commit your changes, push the branch, and open a pull request using the gh CLI (e.g. gh pr create). If you made no file changes, do not create a branch or PR.
+8. When you have made any documentation changes: create a new branch, commit your changes, push the branch, and open a pull request using the gh CLI (e.g. gh pr create). If you made no file changes, do not create a branch or PR—treat the branch/PR step as not applicable and do not mark it complete as if a PR was opened.
 9. Do not provide any text output - files are modified directly using tools

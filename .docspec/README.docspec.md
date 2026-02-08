@@ -21,18 +21,18 @@
 This README serves as the primary entry point and comprehensive documentation for the docspec project. It is a technical project overview that must answer:
 
 - **What is docspec?** - A specification format and toolchain for agent-maintained documentation
-- **How do I install it?** - npm installation methods (local and global)
-- **How do I use it?** - CLI commands (`docspec create <filename.md>` to create doc + docspec, `docspec review`) and TypeScript API usage
-- **How do I integrate it?** - Pre-commit hooks, GitHub Actions (prompt-only; you run your own LLM)
+- **How do I add docspec to my GitHub project?** - Primary: GitHub Actions integration (docspec-review action, example workflow). This must be the first concrete use case readers see so they can quickly implement docspec on their own repo.
 - **What is the docspec format?** - High-level overview and reference to docspec-template.md
+- **How do I install it?** - npm installation methods (local and global)
+- **How do I use it from the CLI or as a library?** - Secondary: CLI commands and TypeScript API for users who need local or programmatic use
+- **How do I integrate it elsewhere?** - Pre-commit hooks
 - **How do I develop with it?** - Test and build commands
 
-**Target audiences:**
-- End-users using the CLI for validation and generation
-- Library consumers using the TypeScript API in their projects
-- GitHub Actions users integrating automated documentation workflows
-- CI/CD integrators adding docspec validation to their pipelines
-- Contributors developing and testing the project
+**Target audiences (priority order):**
+- GitHub Actions users adding docspec to their project (primary)
+- End-users using the CLI for validation and generation (secondary)
+- Library consumers using the TypeScript API (secondary)
+- CI/CD integrators and contributors
 
 **Document type:** Technical project documentation (README/overview)
 
@@ -61,29 +61,33 @@ This README serves as the primary entry point and comprehensive documentation fo
 
 ## 3. Expected Structure
 
-The README must contain these sections in order:
+The README must contain these sections in this order. **GitHub Actions (use on your project) is the primary path and must appear early**; CLI and library usage are secondary and appear later.
 
 1. **Title and Description**: Package name (`# docspec`) and one-sentence description; note that docspec does not run an LLM and that docspec files live under .docspec/
 
-2. **The Docspec Format**: High-level overview of the format
+2. **GitHub Actions (use docspec on your project)**: Must appear near the top, immediately after the intro, so readers quickly see how to add docspec to their own GitHub project.
+   - docspec-review action is prompt-only (no LLM, no API keys in docspec itself)
+   - Example workflow: run on PR merge (or manual), prepare prompt with the action, then run your own LLM (e.g. Claude Code Action)
+   - Reference this repo’s workflow (`.github/workflows/docspec-review.yml`) and action (`.github/actions/docspec-review`); action inputs/outputs must match action.yml
+   - Constraint: Keep this section concise and actionable; it is the primary use case
+
+3. **The Docspec Format**: High-level overview of the format
    - Link to docspec-template.md as the definitive format specification
    - List the 5 required sections by name
    - Explain validation requirements (non-boilerplate content, 50-character minimum)
    - Constraint: Do NOT duplicate the full format specification; link to docspec-template.md instead
 
-3. **Installation**: npm installation instructions
+4. **Installation**: npm installation instructions
    - Local installation (`npm install docspec`)
    - Global installation (`npm install -g docspec`)
    - Constraint: Keep concise, no version-specific details
 
-4. **Usage**: How to use docspec with subsections:
+5. **Usage**: How to use docspec from the CLI or as a library (secondary to GitHub Actions):
    - **CLI Commands**: Document `docspec create <markdown_path> [--overwrite]` (creates empty doc and docspec if missing; `--overwrite` replaces only the docspec, not the markdown) and `docspec review` with examples matching src/cli.ts exactly
    - **Library Usage**: TypeScript import examples showing exported functions and types from src/index.ts
    - Constraint: Code examples must be actual working commands from the codebase
 
-5. **Pre-commit Integration**: How to use with pre-commit hooks (target .docspec/*.docspec.md)
-
-6. **GitHub Actions**: Prompt-only action (docspec-review); example workflow that runs docspec-review then Claude; no API keys required by docspec itself
+6. **Pre-commit Integration**: How to use with pre-commit hooks (target .docspec/*.docspec.md)
 
 7. **Development**: Commands for contributors (npm test, npm run build)
 
