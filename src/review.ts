@@ -7,23 +7,57 @@ import { docspecToMarkdownPath, isDocspecPath, markdownToDocspecPath } from "./p
 const DEFAULT_MAX_DOCSPECS = 10;
 const DEFAULT_MAX_DIFF_CHARS = 120000;
 
-const REVIEW_TASK_FILENAME = "review-task.md";
+const DOCSPEC_PROMPT_FILENAME = "docspec-prompt.md";
+const LEGACY_AGENT_PROMPT_FILENAME = "agent-prompt.md";
+const LEGACY_REVIEW_TASK_FILENAME = "review-task.md";
 
 /**
- * Get review task content from .docspec/review-task.md, seeding from the bundled
- * docspec-review-task.md if the user file does not exist.
+ * Strip the ## AGENT INSTRUCTIONS section from docspec markdown so the prompt
+ * does not repeat the same text for each docspec (it appears once in docspec-prompt.md).
  */
-async function getReviewTaskContent(repoRoot: string): Promise<string> {
-  const userPath = path.join(repoRoot, ".docspec", REVIEW_TASK_FILENAME);
-  const defaultPath = path.join(__dirname, "..", "docspec-review-task.md");
+function stripAgentInstructionsSection(docspecContent: string): string {
+  const heading = "## AGENT INSTRUCTIONS";
+  const idx = docspecContent.indexOf(heading);
+  if (idx < 0) return docspecContent;
+  const afterHeading = idx + heading.length;
+  const nextSectionMatch = docspecContent.slice(afterHeading).match(/\n## \d+\. /);
+  const endOfBlock = nextSectionMatch
+    ? afterHeading + nextSectionMatch.index!
+    : docspecContent.length;
+  const before = docspecContent.slice(0, idx).trimEnd();
+  const after = docspecContent.slice(endOfBlock).replace(/^\n+/, "");
+  return (before + (after ? "\n\n" + after : "")).trim();
+}
+
+/**
+ * Get docspec prompt content from .docspec/docspec-prompt.md (or .docspec/agent-prompt.md /
+ * .docspec/review-task.md for backward compatibility), seeding from the bundled docspec-prompt.md if none exist.
+ */
+async function getDocspecPromptContent(repoRoot: string): Promise<string> {
+  const docspecDir = path.join(repoRoot, ".docspec");
+  const promptPath = path.join(docspecDir, DOCSPEC_PROMPT_FILENAME);
+  const legacyAgentPath = path.join(docspecDir, LEGACY_AGENT_PROMPT_FILENAME);
+  const legacyReviewPath = path.join(docspecDir, LEGACY_REVIEW_TASK_FILENAME);
+  const defaultPath = path.join(__dirname, "..", "docspec-prompt.md");
+
   try {
-    return await fs.readFile(userPath, "utf-8");
+    return await fs.readFile(promptPath, "utf-8");
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
   }
+  for (const legacyPath of [legacyAgentPath, legacyReviewPath]) {
+    try {
+      const legacyContent = await fs.readFile(legacyPath, "utf-8");
+      await fs.mkdir(docspecDir, { recursive: true });
+      await fs.writeFile(promptPath, legacyContent, "utf-8");
+      return legacyContent;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+    }
+  }
   const defaultContent = await fs.readFile(defaultPath, "utf-8");
-  await fs.mkdir(path.join(repoRoot, ".docspec"), { recursive: true });
-  await fs.writeFile(userPath, defaultContent, "utf-8");
+  await fs.mkdir(docspecDir, { recursive: true });
+  await fs.writeFile(promptPath, defaultContent, "utf-8");
   return defaultContent;
 }
 
@@ -286,7 +320,8 @@ export async function buildDocspecReviewPrompt(
     } catch {
       continue;
     }
-    const docspecContent = await fs.readFile(docspecPath, "utf-8");
+    let docspecContent = await fs.readFile(docspecPath, "utf-8");
+    docspecContent = stripAgentInstructionsSection(docspecContent);
     const mdContent = await fs.readFile(targetFull, "utf-8");
     parts.push(
       `## Docspec: ${relDocspec}`,
@@ -325,8 +360,8 @@ export async function buildDocspecReviewPrompt(
     );
   }
 
-  const reviewTaskContent = await getReviewTaskContent(repoRoot);
-  parts.push(reviewTaskContent.trim());
+  const docspecPromptContent = await getDocspecPromptContent(repoRoot);
+  parts.push(docspecPromptContent.trim());
 
   const prompt = parts.join("\n");
   const outPath = options.outputPath ? path.resolve(repoRoot, options.outputPath) : null;

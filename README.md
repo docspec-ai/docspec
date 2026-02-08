@@ -4,13 +4,13 @@ Docspec is a specification format and toolchain for documentation that is mainta
 
 Docspec files live under **`.docspec/`**. For a markdown file `README.md` or `docs/deploy.md`, the docspec is `.docspec/README.docspec.md` or `.docspec/docs/deploy.docspec.md` respectively.
 
-The **format template** is fully up to you: it lives at **`.docspec/docspec.md`**. If you run any docspec command and `.docspec/docspec.md` does not exist, it is seeded from the bundled default (the content of `docspec-format.md` in this repo). Edit `.docspec/docspec.md` to define your own structure.
+The **format template** is fully up to you: it lives at **`.docspec/docspec-template.md`**. If you run any docspec command and `.docspec/docspec-template.md` does not exist, it is seeded from the bundled default (the content of `docspec-template.md` in this repo). Edit `.docspec/docspec-template.md` to define your own structure.
 
 ## The Docspec Format
 
-Each `*.docspec.md` file is a specification for another document. The **default** format (used when seeding) is defined in [`docspec-format.md`](docspec-format.md). After seeding, your project uses `.docspec/docspec.md`, which you can change.
+Each `*.docspec.md` file is a specification for another document. The **default** format (used when seeding) is defined in [`docspec-template.md`](docspec-template.md). After seeding, your project uses `.docspec/docspec-template.md`, which you can change.
 
-The default includes 5 sections: Document Purpose, Update Triggers, Expected Structure, Editing Guidelines, Intentional Omissions. Customize the template in `.docspec/docspec.md` to match your needs.
+The default includes 5 sections: Document Purpose, Update Triggers, Expected Structure, Editing Guidelines, Intentional Omissions. Customize the template in `.docspec/docspec-template.md` to match your needs.
 
 ## Installation
 
@@ -38,7 +38,7 @@ docspec create docs/deploy.md
 ```
 
 - If the markdown file is missing, it is created (empty).
-- If the docspec is missing, it is created from the template at `.docspec/docspec.md` (seeded from the default on first run).
+- If the docspec is missing, it is created from the template at `.docspec/docspec-template.md` (seeded from the default on first run).
 - If either already exists, it is left unchanged. Use `--overwrite` to replace only the docspec (markdown is never overwritten).
 
 ```bash
@@ -55,7 +55,7 @@ docspec review --changed-files "src/foo.ts,README.md" --base <base> --merge <mer
 docspec review README.md docs/deploy.md --output prompt.txt
 ```
 
-Options: `--max-docspecs`, `--max-diff-chars`. Default output file: `prompt.txt`. The **review task** (instructions appended to the prompt) is customizable: it lives at **`.docspec/review-task.md`**. If that file does not exist, it is seeded from the bundled default ([`docspec-review-task.md`](docspec-review-task.md)). Edit `.docspec/review-task.md` to change the task instructions.
+Options: `--max-docspecs`, `--max-diff-chars`. Default output file: `prompt.txt`. The **docspec prompt** (general instructions and task steps appended to the prompt) is customizable: it lives at **`.docspec/docspec-prompt.md`**. If that file does not exist, it is seeded from the bundled default ([`docspec-prompt.md`](docspec-prompt.md)). If you have an existing `.docspec/agent-prompt.md` or `.docspec/review-task.md`, it will be used once and copied to `docspec-prompt.md`. Edit `.docspec/docspec-prompt.md` to change the instructions or task steps.
 
 Add the `--verbose` flag to any command for detailed logging.
 
