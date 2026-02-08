@@ -55,7 +55,7 @@ describe("review", () => {
     expect(prompt).toContain(docspecContent);
     expect(prompt).toContain("<markdown>");
     expect(prompt).toContain("# Foo content");
-    expect(prompt).toContain("Task:");
+    expect(prompt).toContain("## Steps");
     expect(outputPath).toBeNull();
   });
 
@@ -97,5 +97,55 @@ describe("review", () => {
     expect(outputPath).toBe(path.join(tempDir, "out", "prompt.txt"));
     const written = await fs.readFile(path.join(tempDir, "out", "prompt.txt"), "utf-8");
     expect(written).toBe(prompt);
+  });
+
+  it("strips ## AGENT INSTRUCTIONS from docspec content in the prompt", async () => {
+    await fs.mkdir(path.join(tempDir, ".docspec"), { recursive: true });
+    const docspecWithInstructions =
+      "# DOCSPEC: foo\n\n## AGENT INSTRUCTIONS\n\n**Target document:** `foo.md`\n\n**Your task:**\n* Compare.\n\n## 1. Purpose\n\nDescribe foo.";
+    await fs.writeFile(
+      path.join(tempDir, ".docspec", "foo.docspec.md"),
+      docspecWithInstructions,
+      "utf-8"
+    );
+    await fs.writeFile(path.join(tempDir, "foo.md"), "# Foo", "utf-8");
+
+    const { prompt } = await buildDocspecReviewPrompt({
+      changedFiles: ["foo.md"],
+      repoRoot: tempDir,
+    });
+
+    expect(prompt).toContain("<docspec>");
+    expect(prompt).not.toContain("## AGENT INSTRUCTIONS");
+    expect(prompt).toContain("## 1. Purpose");
+    expect(prompt).toContain("Describe foo.");
+  });
+
+  it("uses review-task.md when docspec-prompt.md is missing and copies to docspec-prompt.md", async () => {
+    await fs.mkdir(path.join(tempDir, ".docspec"), { recursive: true });
+    const legacyContent = "Task:\n1. Legacy step.";
+    await fs.writeFile(
+      path.join(tempDir, ".docspec", "review-task.md"),
+      legacyContent,
+      "utf-8"
+    );
+    await fs.writeFile(
+      path.join(tempDir, ".docspec", "bar.docspec.md"),
+      "# DOCSPEC: bar\n\n## 1. Purpose\n\n",
+      "utf-8"
+    );
+    await fs.writeFile(path.join(tempDir, "bar.md"), "# Bar", "utf-8");
+
+    const { prompt } = await buildDocspecReviewPrompt({
+      changedFiles: ["bar.md"],
+      repoRoot: tempDir,
+    });
+
+    expect(prompt).toContain("Legacy step.");
+    const agentPromptAfter = await fs.readFile(
+      path.join(tempDir, ".docspec", "docspec-prompt.md"),
+      "utf-8"
+    );
+    expect(agentPromptAfter).toBe(legacyContent);
   });
 });

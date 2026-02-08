@@ -49,10 +49,10 @@ describe("CLI", () => {
   };
 
   describe("create command (docspec create <markdown_path>)", () => {
-    it("should seed .docspec/docspec.md from default when missing", async () => {
+    it("should seed .docspec/docspec-template.md from default when missing", async () => {
       const result = await runCli("create seed-test.md");
       expect(result.code).toBe(0);
-      const templatePath = path.join(tempDir, ".docspec", "docspec.md");
+      const templatePath = path.join(tempDir, ".docspec", "docspec-template.md");
       const templateExists = await fs.access(templatePath).then(() => true).catch(() => false);
       expect(templateExists).toBe(true);
       const content = await fs.readFile(templatePath, "utf-8");

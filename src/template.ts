@@ -14,7 +14,7 @@ export interface ParsedFormat {
 }
 
 /**
- * Parse the docspec template file (.docspec/docspec.md) into structure and sections.
+ * Parse the docspec template file (.docspec/docspec-template.md) into structure and sections.
  */
 export function parseFormatFile(formatFilePath: string): ParsedFormat {
   const content = fs.readFileSync(formatFilePath, "utf-8");
@@ -110,16 +110,16 @@ function parseFormatContent(content: string): ParsedFormat {
 }
 
 /**
- * Seed .docspec/docspec.md from the bundled docspec-format.md if it doesn't exist.
+ * Seed .docspec/docspec-template.md from the bundled docspec-template.md if it doesn't exist.
  */
 function seedDefaultFormatFile(): string {
   const cwd = process.cwd();
-  const userPath = path.join(cwd, ".docspec", "docspec.md");
-  const defaultPath = path.join(__dirname, "..", "docspec-format.md");
+  const userPath = path.join(cwd, ".docspec", "docspec-template.md");
+  const defaultPath = path.join(__dirname, "..", "docspec-template.md");
   if (!fs.existsSync(defaultPath)) {
     throw new Error(
       `Default template not found at ${defaultPath}. ` +
-        `Create .docspec/docspec.md in your project or ensure the docspec package is installed correctly.`
+        `Create .docspec/docspec-template.md in your project or ensure the docspec package is installed correctly.`
     );
   }
   fs.mkdirSync(path.join(cwd, ".docspec"), { recursive: true });
@@ -128,11 +128,11 @@ function seedDefaultFormatFile(): string {
 }
 
 /**
- * Path to the template file (.docspec/docspec.md). Seeds from bundled default if missing.
+ * Path to the template file (.docspec/docspec-template.md). Seeds from bundled default if missing.
  */
 export function getFormatFilePath(): string {
   const cwd = process.cwd();
-  const userPath = path.join(cwd, ".docspec", "docspec.md");
+  const userPath = path.join(cwd, ".docspec", "docspec-template.md");
   if (fs.existsSync(userPath)) return userPath;
   return seedDefaultFormatFile();
 }

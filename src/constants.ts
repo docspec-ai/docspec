@@ -25,7 +25,7 @@ function loadFormat(): ParsedFormat {
     logger.debug(`Error loading format: ${error instanceof Error ? error.message : String(error)}`);
     throw new Error(
       `Failed to load docspec format file: ${error instanceof Error ? error.message : String(error)}\n` +
-      `The template is at .docspec/docspec.md (it is seeded from the default on first run).`
+      `The template is at .docspec/docspec-template.md (it is seeded from the default on first run).`
     );
   }
 }

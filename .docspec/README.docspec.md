@@ -24,7 +24,7 @@ This README serves as the primary entry point and comprehensive documentation fo
 - **How do I install it?** - npm installation methods (local and global)
 - **How do I use it?** - CLI commands (`docspec create <filename.md>` to create doc + docspec, `docspec review`) and TypeScript API usage
 - **How do I integrate it?** - Pre-commit hooks, GitHub Actions (prompt-only; you run your own LLM)
-- **What is the docspec format?** - High-level overview and reference to docspec-format.md
+- **What is the docspec format?** - High-level overview and reference to docspec-template.md
 - **How do I develop with it?** - Test and build commands
 
 **Target audiences:**
@@ -42,7 +42,7 @@ This README serves as the primary entry point and comprehensive documentation fo
 
 - **CLI changes** (src/cli.ts): New commands, modified command arguments, changed command behavior
 - **Validation logic** (src/validator.ts): New validation rules, changed error messages, modified validation behavior
-- **Docspec format definition** (docspec-format.md): Changes to required sections, section names, validation rules
+- **Docspec format definition** (docspec-template.md): Changes to required sections, section names, validation rules
 - **GitHub Action configuration** (action.yml): New inputs/outputs, changed defaults, modified descriptions
 - **Workflow files** (.github/workflows/docspec-review.yml): Workflow name changes, trigger changes, new steps or configuration
 - **Installation method** (package.json): Package name changes, new installation requirements
@@ -66,10 +66,10 @@ The README must contain these sections in order:
 1. **Title and Description**: Package name (`# docspec`) and one-sentence description; note that docspec does not run an LLM and that docspec files live under .docspec/
 
 2. **The Docspec Format**: High-level overview of the format
-   - Link to docspec-format.md as the definitive format specification
+   - Link to docspec-template.md as the definitive format specification
    - List the 5 required sections by name
    - Explain validation requirements (non-boilerplate content, 50-character minimum)
-   - Constraint: Do NOT duplicate the full format specification; link to docspec-format.md instead
+   - Constraint: Do NOT duplicate the full format specification; link to docspec-template.md instead
 
 3. **Installation**: npm installation instructions
    - Local installation (`npm install docspec`)
@@ -106,7 +106,7 @@ The README must contain these sections in order:
 **DO:**
 - Use actual command examples: `docspec create README.md`, `docspec create README.md --overwrite`, `docspec review --base X --merge Y`
 - Reference source files when describing behavior
-- Link to definitive sources: action.yml for configuration options, docspec-format.md for format details
+- Link to definitive sources: action.yml for configuration options, docspec-template.md for format details
 
 **DON'T:**
 - Invent CLI flags or options that don't exist in src/cli.ts
@@ -128,5 +128,5 @@ This README deliberately excludes:
 - Package.json configuration details beyond installation
 
 **Docspec format specification:**
-- The detailed format specification lives in docspec-format.md
+- The detailed format specification lives in docspec-template.md
 - The README provides only a high-level overview and links to the format file
