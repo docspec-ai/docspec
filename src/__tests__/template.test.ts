@@ -1,7 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
-import { getFormatFilePath, parseFormatFile } from "../template";
+import { getFormatFilePath, getTemplateContent } from "../template";
 
 describe("template", () => {
   let tempDir: string;
@@ -38,39 +38,15 @@ describe("template", () => {
     });
   });
 
-  describe("parseFormatFile", () => {
-    it("parses template content into sections and template string", async () => {
-      const templatePath = path.join(tempDir, "format.md");
-      await fs.writeFile(
-        templatePath,
-        `# DOCSPEC: [{{TARGET_FILE}}](/{{TARGET_FILE}})
-
-## 1. Document Purpose
-Describe the document.
-
-## 2. Update Triggers
-When to update.
-`,
-        "utf-8"
-      );
-
-      const parsed = parseFormatFile(templatePath);
-
-      expect(parsed.sections).toHaveLength(2);
-      expect(parsed.sections[0].name).toBe("Document Purpose");
-      expect(parsed.sections[0].number).toBe(1);
-      expect(parsed.sections[0].boilerplate).toContain("Describe the document.");
-      expect(parsed.sections[1].name).toBe("Update Triggers");
-      expect(parsed.template).toContain("{{AGENT_INSTRUCTIONS}}");
-      expect(parsed.template).toContain("{{SECTIONS}}");
-      expect(parsed.template).toContain("{{TARGET_FILE}}");
-    });
-
-    it("throws when no section headers found", async () => {
-      const templatePath = path.join(tempDir, "empty.md");
-      await fs.writeFile(templatePath, "Just some text\nNo sections\n", "utf-8");
-
-      expect(() => parseFormatFile(templatePath)).toThrow("No section headers found");
+  describe("getTemplateContent", () => {
+    it("returns template content with placeholder and default sections", () => {
+      const content = getTemplateContent();
+      expect(content).toContain("{{TARGET_FILE}}");
+      expect(content).toContain("Document Purpose");
+      expect(content).toContain("Update Triggers");
+      expect(content).toContain("Expected Structure");
+      expect(content).toContain("Editing Guidelines");
+      expect(content).toContain("Intentional Omissions");
     });
   });
 });

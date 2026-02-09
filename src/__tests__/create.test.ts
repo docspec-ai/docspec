@@ -2,8 +2,15 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { ensureDocAndDocspec, generateDocspecContent } from "../create";
-import { REQUIRED_SECTIONS } from "../constants";
 import { markdownToDocspecPath } from "../path-utils";
+
+const DEFAULT_TEMPLATE_SECTIONS = [
+  "Document Purpose",
+  "Update Triggers",
+  "Expected Structure",
+  "Editing Guidelines",
+  "Intentional Omissions",
+];
 
 describe("create", () => {
   let tempDir: string;
@@ -26,9 +33,9 @@ describe("create", () => {
       expect(content).toContain("# DOCSPEC: [README.md](/README.md)");
     });
 
-    it("should include all required sections", () => {
+    it("should include all default template sections", () => {
       const content = generateDocspecContent("test.md");
-      REQUIRED_SECTIONS.forEach((section) => {
+      DEFAULT_TEMPLATE_SECTIONS.forEach((section) => {
         expect(content).toContain(section);
       });
     });
@@ -86,11 +93,11 @@ describe("create", () => {
       expect(content).toContain("[test.md](/test.md)");
     });
 
-    it("should include all required sections in generated docspec", async () => {
+    it("should include all default template sections in generated docspec", async () => {
       await ensureDocAndDocspec("test.md", tempDir);
       const filePath = path.join(tempDir, ".docspec", "test.docspec.md");
       const content = await fs.readFile(filePath, "utf-8");
-      REQUIRED_SECTIONS.forEach((section) => {
+      DEFAULT_TEMPLATE_SECTIONS.forEach((section) => {
         expect(content).toContain(section);
       });
     });

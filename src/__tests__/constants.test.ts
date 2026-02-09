@@ -1,44 +1,23 @@
-import { REQUIRED_SECTIONS, SECTION_BOILERPLATE, getDocspecTemplate } from "../constants";
+import { getDocspecTemplate } from "../constants";
+
+const DEFAULT_TEMPLATE_SECTIONS = [
+  "Document Purpose",
+  "Update Triggers",
+  "Expected Structure",
+  "Editing Guidelines",
+  "Intentional Omissions",
+];
 
 describe("constants", () => {
-  describe("REQUIRED_SECTIONS", () => {
-    it("should have exactly 5 required sections", () => {
-      expect(REQUIRED_SECTIONS).toHaveLength(5);
-    });
-
-    it("should contain all expected section names", () => {
-      const expectedSections = [
-        "Document Purpose",
-        "Update Triggers",
-        "Expected Structure",
-        "Editing Guidelines",
-        "Intentional Omissions",
-      ];
-
-      expectedSections.forEach((section) => {
-        expect(REQUIRED_SECTIONS).toContain(section);
-      });
-    });
-  });
-
-  describe("SECTION_BOILERPLATE", () => {
-    it("should have boilerplate for all required sections", () => {
-      REQUIRED_SECTIONS.forEach((section) => {
-        expect(SECTION_BOILERPLATE[section]).toBeDefined();
-        expect(SECTION_BOILERPLATE[section].length).toBeGreaterThan(0);
-      });
-    });
-  });
-
   describe("getDocspecTemplate", () => {
     it("should generate a template with link to target file", () => {
       const template = getDocspecTemplate("README.md");
       expect(template).toContain("# DOCSPEC: [README.md](/README.md)");
     });
 
-    it("should include all 5 required sections", () => {
+    it("should include all 5 default template sections", () => {
       const template = getDocspecTemplate("Test");
-      REQUIRED_SECTIONS.forEach((section) => {
+      DEFAULT_TEMPLATE_SECTIONS.forEach((section) => {
         expect(template).toContain(section);
       });
     });
@@ -50,15 +29,10 @@ describe("constants", () => {
       }
     });
 
-    it("should include boilerplate content for each section", () => {
-      const template = getDocspecTemplate("Test");
-      REQUIRED_SECTIONS.forEach((section) => {
-        const boilerplate = SECTION_BOILERPLATE[section];
-        // Check that at least part of the boilerplate is present
-        expect(template).toContain(boilerplate.split("\n")[0]);
-      });
+    it("should not inject extra blank lines between intro and first section (no triple newlines)", () => {
+      const template = getDocspecTemplate("storefront/README.md");
+      expect(template).not.toMatch(/\n{3,}/);
+      expect(template).toContain("by agents.\n\n## 1. Document Purpose");
     });
-
   });
 });
-

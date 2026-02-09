@@ -12,24 +12,6 @@ const LEGACY_AGENT_PROMPT_FILENAME = "agent-prompt.md";
 const LEGACY_REVIEW_TASK_FILENAME = "review-task.md";
 
 /**
- * Strip the ## AGENT INSTRUCTIONS section from docspec markdown so the prompt
- * does not repeat the same text for each docspec (it appears once in docspec-prompt.md).
- */
-function stripAgentInstructionsSection(docspecContent: string): string {
-  const heading = "## AGENT INSTRUCTIONS";
-  const idx = docspecContent.indexOf(heading);
-  if (idx < 0) return docspecContent;
-  const afterHeading = idx + heading.length;
-  const nextSectionMatch = docspecContent.slice(afterHeading).match(/\n## \d+\. /);
-  const endOfBlock = nextSectionMatch
-    ? afterHeading + nextSectionMatch.index!
-    : docspecContent.length;
-  const before = docspecContent.slice(0, idx).trimEnd();
-  const after = docspecContent.slice(endOfBlock).replace(/^\n+/, "");
-  return (before + (after ? "\n\n" + after : "")).trim();
-}
-
-/**
  * Get docspec prompt content from .docspec/docspec-prompt.md (or .docspec/agent-prompt.md /
  * .docspec/review-task.md for backward compatibility), seeding from the bundled docspec-prompt.md if none exist.
  */
@@ -59,6 +41,14 @@ async function getDocspecPromptContent(repoRoot: string): Promise<string> {
   await fs.mkdir(docspecDir, { recursive: true });
   await fs.writeFile(promptPath, defaultContent, "utf-8");
   return defaultContent;
+}
+
+/**
+ * Ensure .docspec/docspec-prompt.md exists, seeding from bundled default (or legacy agent-prompt.md /
+ * review-task.md) if missing. Call this from `docspec create` so both template and prompt are seeded on first run.
+ */
+export async function ensureDocspecPromptFile(repoRoot: string): Promise<void> {
+  await getDocspecPromptContent(repoRoot);
 }
 
 export interface DocspecReviewOptions {
@@ -319,8 +309,7 @@ export async function buildDocspecReviewPrompt(
     } catch {
       continue;
     }
-    let docspecContent = await fs.readFile(docspecPath, "utf-8");
-    docspecContent = stripAgentInstructionsSection(docspecContent);
+    const docspecContent = await fs.readFile(docspecPath, "utf-8");
     const mdContent = await fs.readFile(targetFull, "utf-8");
     parts.push(
       `## Docspec: ${relDocspec}`,

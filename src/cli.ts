@@ -5,7 +5,7 @@ import * as path from "path";
 import { ensureDocAndDocspec } from "./create";
 import { logger } from "./logger";
 import { markdownToDocspecPath } from "./path-utils";
-import { buildDocspecReviewPrompt } from "./review";
+import { buildDocspecReviewPrompt, ensureDocspecPromptFile } from "./review";
 const program = new Command();
 
 program
@@ -29,6 +29,7 @@ const createCmd = program
       const relativeMd = resolved.startsWith(cwd)
         ? path.relative(cwd, resolved).replace(/\\/g, "/")
         : markdownPath;
+      await ensureDocspecPromptFile(cwd);
       const { markdownCreated, docspecCreated } = await ensureDocAndDocspec(relativeMd, cwd, { overwrite });
       if (markdownCreated || docspecCreated) {
         const parts: string[] = [];

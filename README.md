@@ -160,7 +160,7 @@ const { prompt } = await buildDocspecReviewPrompt({
 });
 ```
 
-The library also exports: `ensureDocAndDocspec()`, `generateDocspecContent()`, `REQUIRED_SECTIONS`, `SECTION_BOILERPLATE`, `logger`, `LogLevel`, `isDocspecPath`, and types `DocspecReviewOptions`, `EnsureDocAndDocspecOptions`, `EnsureDocAndDocspecResult`.
+The library also exports: `ensureDocAndDocspec()`, `generateDocspecContent()`, `logger`, `LogLevel`, `isDocspecPath`, and types `DocspecReviewOptions`, `EnsureDocAndDocspecOptions`, `EnsureDocAndDocspecResult`.
 
 ## Pre-commit Integration
 

@@ -60,6 +60,18 @@ describe("CLI", () => {
       expect(content).toContain("{{TARGET_FILE}}");
     });
 
+    it("should seed .docspec/docspec-prompt.md from default when missing", async () => {
+      const result = await runCli("create prompt-seed-test.md");
+      expect(result.code).toBe(0);
+      const promptPath = path.join(tempDir, ".docspec", "docspec-prompt.md");
+      const promptExists = await fs.access(promptPath).then(() => true).catch(() => false);
+      expect(promptExists).toBe(true);
+      const content = await fs.readFile(promptPath, "utf-8");
+      expect(content).toContain("When updating each document");
+      expect(content).toContain("docspec");
+      expect(content.length).toBeGreaterThan(100);
+    });
+
     it("should create both empty markdown and docspec for markdown path", async () => {
       const result = await runCli("create new.md");
 
