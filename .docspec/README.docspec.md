@@ -12,7 +12,6 @@ This README serves as the primary entry point and comprehensive documentation fo
 - **What is the docspec format?** - High-level overview and reference to both docspec-template.md (structure of each docspec file) and docspec-prompt.md (instructions used when running docspec review)
 - **How do I install it?** - Simplest: one workflow file that calls this repo's reusable workflow (no copying steps); or add a step that uses the action from this repo for inline use. Then npm installation methods (local and global) for local or scripted use.
 - **How do I use it from the CLI or as a library?** - Secondary: CLI commands and TypeScript API for users who need local or programmatic use
-- **How do I integrate it elsewhere?** - Pre-commit hooks
 - **How do I develop with it?** - Test and build commands
 
 **Target audiences (priority order):**
@@ -36,7 +35,6 @@ This README serves as the primary entry point and comprehensive documentation fo
 - **Installation method** (package.json): Package name changes, new installation requirements
 - **File naming convention**: Docspec files live under .docspec/ (e.g. .docspec/README.docspec.md for README.md)
 - **Template sections** (src/constants.ts): Changes to default section list or section definitions
-- **Pre-commit hook configuration** (.pre-commit-config.yaml): Changes to hook setup or usage
 - **Library API exports** (src/index.ts): New exported functions, types, or constants; removed exports; changed function signatures
 
 **Changes that SHOULD NOT trigger updates:**
@@ -75,11 +73,9 @@ The README must contain these sections in this order. **GitHub Actions (use on y
    - **Library Usage**: TypeScript import examples showing exported functions and types from src/index.ts
    - Constraint: Code examples must be actual working commands from the codebase
 
-6. **Pre-commit Integration**: How to use with pre-commit hooks (target .docspec/*.docspec.md)
+6. **Development**: Commands for contributors (npm test, npm run build)
 
-7. **Development**: Commands for contributors (npm test, npm run build)
-
-8. **License**: License type (MIT)
+7. **License**: License type (MIT)
 
 ## 4. Editing Guidelines
 
