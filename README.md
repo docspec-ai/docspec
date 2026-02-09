@@ -14,24 +14,50 @@ Two key files define how docspec works:
 
 Add docspec to your GitHub project to automatically review documentation when PRs are merged.
 
-### Minimal installation
+### Simplest: call the reusable workflow
 
-Add a single step to your workflow that uses the action from this repo:
+Add a single workflow file that calls this repo's reusable workflow—no need to copy steps or the action. Add `ANTHROPIC_API_KEY` to your repository secrets.
+
+```yaml
+name: Docspec review
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull request number (for manual run with PR context)'
+        required: false
+        type: string
+      review_files:
+        description: 'Comma-separated markdown file(s) to review (e.g. README.md, docs/deploy.md). If set, reviews only these; no PR diff.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  docspec_review:
+    if: ${{ github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch' }}
+    uses: docspec-ai/docspec/.github/workflows/docspec-review.yml@main
+    with:
+      pr_number: ${{ github.event.inputs.pr_number }}
+      review_files: ${{ github.event.inputs.review_files }}
+    secrets: inherit
+```
+
+### Inline workflow (action + Claude step)
+
+For users who want to run the docspec-review action themselves and wire their own LLM step:
 
 ```yaml
 - uses: docspec-ai/docspec/.github/actions/docspec-review@main
 ```
 
-See [action.yml](.github/actions/docspec-review/action.yml) for all available inputs and outputs.
-
-### Example workflow
-
-This repo's [`.github/workflows/docspec-review.yml`](.github/workflows/docspec-review.yml) shows how to use the docspec-review action with the [official Claude Code Action](https://github.com/anthropics/claude-code-action):
-
-1. The docspec-review action prepares a prompt file (no LLM, no API keys in docspec itself)
-2. The Claude Code Action runs with that prompt to review and sync documentation
-
-Add `ANTHROPIC_API_KEY` to your repository secrets to enable the Claude step.
+See [action.yml](.github/actions/docspec-review/action.yml) for all inputs and outputs. This repo's [`.github/workflows/docspec-review.yml`](.github/workflows/docspec-review.yml) shows the full flow: the action prepares a prompt file (no LLM), then the Claude Code Action runs that prompt. Add `ANTHROPIC_API_KEY` to your repository secrets for the Claude step.
 
 ## The Docspec Format
 
@@ -57,7 +83,7 @@ The **docspec prompt** contains task instructions appended to the output when ru
 
 ### Minimal (CI)
 
-Use the docspec-review action in your workflow — see [Minimal installation](#minimal-installation) under GitHub Actions above. No npm install needed.
+Call this repo's reusable workflow (see [Simplest: call the reusable workflow](#simplest-call-the-reusable-workflow)) or add a step that uses the action (see [Inline workflow](#inline-workflow-action--claude-step)). No npm install needed.
 
 ### Local or scripted use
 
