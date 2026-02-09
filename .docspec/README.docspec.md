@@ -23,7 +23,7 @@ This README serves as the primary entry point and comprehensive documentation fo
 - **What is docspec?** - A specification format and toolchain for agent-maintained documentation
 - **How do I add docspec to my GitHub project?** - Primary: GitHub Actions integration (docspec-review action, example workflow). This must be the first concrete use case readers see so they can quickly implement docspec on their own repo.
 - **What is the docspec format?** - High-level overview and reference to docspec-template.md
-- **How do I install it?** - npm installation methods (local and global)
+- **How do I install it?** - Super minimal installation first: in your own workflow add a step that uses the action from this repo (e.g. `uses: <this-repo>/.github/actions/docspec-review@main`); then npm installation methods (local and global) for local or scripted use
 - **How do I use it from the CLI or as a library?** - Secondary: CLI commands and TypeScript API for users who need local or programmatic use
 - **How do I integrate it elsewhere?** - Pre-commit hooks
 - **How do I develop with it?** - Test and build commands
@@ -66,6 +66,7 @@ The README must contain these sections in this order. **GitHub Actions (use on y
 1. **Title and Description**: Package name (`# docspec`) and one-sentence description; note that docspec does not run an LLM and that docspec files live under .docspec/
 
 2. **GitHub Actions (use docspec on your project)**: Must appear near the top, immediately after the intro, so readers quickly see how to add docspec to their own GitHub project.
+   - **Minimal installation**: Recommend adding a step that uses the action from this repo in your workflow (e.g. `uses: <this-repo>/.github/actions/docspec-review@main`); no copy and no package install required for CI. The README must use the actual repo path and ref (e.g. branch or tag).
    - docspec-review action is prompt-only (no LLM, no API keys in docspec itself)
    - Example workflow: run on PR merge (or manual), prepare prompt with the action, then run your own LLM (e.g. Claude Code Action)
    - Reference this repo’s workflow (`.github/workflows/docspec-review.yml`) and action (`.github/actions/docspec-review`); action inputs/outputs must match action.yml
@@ -77,7 +78,8 @@ The README must contain these sections in this order. **GitHub Actions (use on y
    - Explain validation requirements (non-boilerplate content, 50-character minimum)
    - Constraint: Do NOT duplicate the full format specification; link to docspec-template.md instead
 
-4. **Installation**: npm installation instructions
+4. **Installation**: Minimal installation first, then npm for local/scripted use.
+   - **Minimal (CI)**: Add a step that uses the action from this repo (e.g. `uses: <this-repo>/.github/actions/docspec-review@main`); no npm install needed.
    - Local installation (`npm install docspec`)
    - Global installation (`npm install -g docspec`)
    - Constraint: Keep concise, no version-specific details
