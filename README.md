@@ -41,7 +41,6 @@ permissions:
 
 jobs:
   docspec_review:
-    if: ${{ github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch' }}
     uses: docspec-ai/docspec/.github/workflows/docspec-review.yml@main
     with:
       pr_number: ${{ github.event.inputs.pr_number }}
