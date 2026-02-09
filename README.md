@@ -161,10 +161,6 @@ const { prompt } = await buildDocspecReviewPrompt({
 
 The library also exports: `ensureDocAndDocspec()`, `generateDocspecContent()`, `logger`, `LogLevel`, `isDocspecPath`, and types `DocspecReviewOptions`, `EnsureDocAndDocspecOptions`, `EnsureDocAndDocspecResult`.
 
-## Pre-commit Integration
-
-Use docspec with pre-commit hooks (target `.docspec/*.docspec.md`).
-
 ## Development
 
 ### Running Tests
