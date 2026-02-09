@@ -16,7 +16,7 @@ Add docspec to your GitHub project to automatically review documentation when PR
 
 ### Simplest: call the reusable workflow
 
-Add a single workflow file that calls this repo's reusable workflow—no need to copy steps or the action. Add `ANTHROPIC_API_KEY` to your repository secrets.
+Add a single workflow file that calls this repo's reusable workflow—no need to copy steps or the action. Add `ANTHROPIC_API_KEY` to your repository secrets; `GITHUB_TOKEN` is provided by GitHub.
 
 ```yaml
 name: Docspec review
@@ -46,7 +46,9 @@ jobs:
     with:
       pr_number: ${{ github.event.inputs.pr_number }}
       review_files: ${{ github.event.inputs.review_files }}
-    secrets: inherit
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ### Inline workflow (action + Claude step)
