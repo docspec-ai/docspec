@@ -48,7 +48,6 @@ jobs:
       review_files: ${{ github.event.inputs.review_files }}
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ### Inline workflow (action + Claude step)
