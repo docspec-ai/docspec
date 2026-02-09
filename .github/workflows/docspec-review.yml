@@ -17,6 +17,20 @@ on:
         description: 'Comma-separated markdown file(s) to review (e.g. README.md, docs/deploy.md). If set, reviews only these; no PR diff.'
         required: false
         type: string
+  workflow_call:
+    inputs:
+      pr_number:
+        description: 'PR number (when calling from another repo with PR context)'
+        required: false
+        type: string
+      review_files:
+        description: 'Comma-separated markdown file(s) to review'
+        required: false
+        type: string
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+        description: 'Anthropic API key for Claude'
 
 permissions:
   contents: write
@@ -38,10 +52,10 @@ jobs:
 
       - name: Prepare docspec review prompt
         id: docspec
-        uses: ./.github/actions/docspec-review
+        uses: docspec-ai/docspec/.github/actions/docspec-review@main
         with:
-          pr_number: ${{ github.event.inputs.pr_number }}
-          review_files: ${{ github.event.inputs.review_files }}
+          pr_number: ${{ inputs.pr_number || github.event.inputs.pr_number }}
+          review_files: ${{ inputs.review_files || github.event.inputs.review_files }}
 
       - name: Read prompt content
         id: prompt_content

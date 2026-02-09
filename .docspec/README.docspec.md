@@ -16,7 +16,7 @@
 
 **Mandatory corrections when the README does not comply:**
 * **Introduction and “does not run an LLM”**: If the intro claims "Docspec does not run an LLM" (or similar) as a blanket statement, rewrite the intro to sell the project: what docspec is, why it’s useful (spec-driven docs, automated review in CI), and how it works. State that the **primary way to use docspec is the GitHub workflow**, which does run an LLM (e.g. Claude) to review and sync docs; only the CLI is prompt-only (no LLM). Do not imply the whole project “does not run an LLM.”
-* **Minimal installation code example**: If the example includes a `with:` block, a `name:` line, or any optional parameters (e.g. `review_files`), replace the entire example with exactly one step: `- uses: docspec-ai/docspec/.github/actions/docspec-review@main` (and nothing else in that code block). The minimal example must show only that single line so readers see the simplest possible install.
+* **GitHub Actions section must offer both options**: (1) **Simplest: call the reusable workflow** — one workflow file that calls this repo's workflow with `uses: docspec-ai/docspec/.github/workflows/docspec-review.yml@main`, with a full YAML example (triggers: pull_request closed, workflow_dispatch with pr_number and review_files; one job with `uses`, `with`, `secrets: inherit`). State that ANTHROPIC_API_KEY is required in repo secrets. (2) **Inline workflow (action + Claude step)** — a single-step action example (`- uses: docspec-ai/docspec/.github/actions/docspec-review@main`) for users who want to wire their own LLM; link to action.yml and to this repo's workflow file for the full flow. If the README only shows the single-step action and does not document the reusable-workflow option, add the "Simplest: call the reusable workflow" subsection first with the full example.
 * **Action inputs/outputs in body**: If the README contains a subsection that lists all action inputs and outputs (e.g. **Inputs:** / **Outputs:** with multiple bullets), remove that subsection and replace it with one sentence that links to [action.yml](.github/actions/docspec-review/action.yml) for options (e.g. "Optional inputs and outputs: see action.yml."). Do not duplicate the full list in the README.
 * **Template sections and validation**: Do not describe docspec template sections as "required." Use language such as "The default template includes 5 sections" (then list them). Do not state that each section must contain non-boilerplate content or any minimum length (e.g. 50 characters); docspec does not validate this. Remove any such validation claims.
 
@@ -28,9 +28,9 @@ This README serves as the primary entry point and comprehensive documentation fo
 
 - **What is docspec?** - A specification format and toolchain for documentation that agents keep in sync with your docs. The main offering is the GitHub workflow: add one step, and on PR merge an LLM (e.g. Claude) reviews and updates docs against their spec files. The CLI is secondary and only produces prompts (no LLM).
 - **Why is it useful?** - Docs stay aligned with their specs; review is automated and runs in CI; you choose the LLM (and API keys stay in your workflow).
-- **How do I add docspec to my GitHub project?** - Primary: GitHub Actions integration (docspec-review action, example workflow). This must be the first concrete use case readers see so they can quickly implement docspec on their own repo.
+- **How do I add docspec to my GitHub project?** - Primary: GitHub Actions integration. The simplest path is to call this repo's reusable workflow (one job with `uses: docspec-ai/docspec/.github/workflows/docspec-review.yml@main`, `secrets: inherit`); alternatively use the docspec-review action inline and wire your own LLM. This must be the first concrete use case readers see so they can quickly implement docspec on their own repo.
 - **What is the docspec format?** - High-level overview and reference to both docspec-template.md (structure of each docspec file) and docspec-prompt.md (instructions used when running docspec review)
-- **How do I install it?** - Super minimal installation first: in your own workflow add a step that uses the action from this repo (e.g. `uses: <this-repo>/.github/actions/docspec-review@main`); then npm installation methods (local and global) for local or scripted use
+- **How do I install it?** - Simplest: one workflow file that calls this repo's reusable workflow (no copying steps); or add a step that uses the action from this repo for inline use. Then npm installation methods (local and global) for local or scripted use.
 - **How do I use it from the CLI or as a library?** - Secondary: CLI commands and TypeScript API for users who need local or programmatic use
 - **How do I integrate it elsewhere?** - Pre-commit hooks
 - **How do I develop with it?** - Test and build commands
@@ -52,7 +52,7 @@ This README serves as the primary entry point and comprehensive documentation fo
 - **Docspec format definition** (docspec-template.md): Changes to template sections, section names, or structure
 - **Docspec review prompt** (docspec-prompt.md): Changes to the steps or instructions appended when running docspec review
 - **GitHub Action configuration** (action.yml): New inputs/outputs, changed defaults, modified descriptions
-- **Workflow files** (.github/workflows/docspec-review.yml): Workflow name changes, trigger changes, new steps or configuration
+- **Workflow files** (.github/workflows/docspec-review.yml): Workflow name changes, trigger changes (including workflow_call for reusable workflow), new steps or configuration
 - **Installation method** (package.json): Package name changes, new installation requirements
 - **File naming convention**: Docspec files live under .docspec/ (e.g. .docspec/README.docspec.md for README.md)
 - **Template sections** (src/constants.ts): Changes to default section list or section definitions
@@ -74,10 +74,9 @@ The README must contain these sections in this order. **GitHub Actions (use on y
 1. **Title and Description**: Package name (`# docspec`) and a short pitch that sells the project: what it is (spec format and toolchain for agent-maintained documentation), why it's useful (keep docs in sync with specs, automated review in CI), and how it works. Emphasize that the **primary way to use docspec is the GitHub workflow**—add one action step and an LLM (e.g. Claude) reviews and syncs docs on PR merge; the workflow does call an LLM. The CLI is optional and only produces prompt output (no LLM in the docspec tool itself). State that docspec files live under .docspec/ and briefly mention the two key files: docspec-template (format for each docspec) and docspec-prompt (instructions for the review flow). Do not claim "Docspec does not run an LLM" as a blanket statement—that is only true for the CLI; the main installation (GitHub workflow) does run an LLM.
 
 2. **GitHub Actions (use docspec on your project)**: Must appear near the top, immediately after the intro, so readers quickly see how to add docspec to their own GitHub project.
-   - **Minimal installation**: The code example must be exactly one step and one line in the YAML block: `- uses: <this-repo>/.github/actions/docspec-review@main`. No `name:` line, no `with:` block, no optional parameters (e.g. review_files) in that example—readers must see the simplest possible install. Optional inputs are documented only via a link to action.yml, not in the minimal example. Use actual repo path and ref in the README.
-   - The action prepares the review prompt; a separate step in the workflow runs your chosen LLM (e.g. Claude Code Action)—so the full flow does use an LLM; API keys live in your repo secrets, not in docspec.
-   - Example workflow: run on PR merge (or manual), docspec-review action outputs the prompt, then your LLM step runs with that prompt to review and sync documentation.
-   - Reference this repo’s workflow (`.github/workflows/docspec-review.yml`) and action (`.github/actions/docspec-review`); link to action.yml for inputs/outputs—do not list them all in the README body.
+   - **Simplest: call the reusable workflow**: First subsection. Describe adding one workflow file that **calls** this repo's workflow (no need to copy steps or the action). Require ANTHROPIC_API_KEY in repository secrets. Include a full YAML example: workflow name; triggers (pull_request types: [closed], workflow_dispatch with inputs pr_number and review_files); one job with `if` for merged PR or manual run, `uses: docspec-ai/docspec/.github/workflows/docspec-review.yml@main`, `with` (pr_number, review_files from github.event.inputs), `secrets: inherit`. Use actual repo path and ref.
+   - **Inline workflow (action + Claude step)**: Second subsection. For users who want to run the docspec-review **action** themselves and wire their own LLM step, show exactly one step: `- uses: docspec-ai/docspec/.github/actions/docspec-review@main`. Link to action.yml for all inputs and outputs. Reference this repo's workflow file for the full flow (prompt preparation then Claude). Note that ANTHROPIC_API_KEY is needed for the Claude step.
+   - The action prepares the review prompt; a separate step (in our workflow or the user's) runs the chosen LLM—so the full flow does use an LLM; API keys live in your repo secrets, not in docspec.
    - Constraint: Keep this section short and direct; it is the primary use case
 
 3. **The Docspec Format**: High-level overview of the format and review flow
@@ -85,8 +84,8 @@ The README must contain these sections in this order. **GitHub Actions (use on y
    - **docspec-prompt**: The task instructions appended to the output when running `docspec review`. It tells the agent how to act (compare target to docspec, update if needed, create new docs or docspecs when appropriate, open a PR). Customizable at `.docspec/docspec-prompt.md`; seeded from the repo’s docspec-prompt.md if missing. Link to docspec-prompt.md so readers understand the review flow.
    - Constraint: Keep this section a high-level overview; link to docspec-template.md and docspec-prompt.md for details
 
-4. **Installation**: Minimal installation first, then npm for local/scripted use.
-   - **Minimal (CI)**: Add a step that uses the action from this repo (e.g. `uses: <this-repo>/.github/actions/docspec-review@main`); no npm install needed.
+4. **Installation**: Simplest CI option first (call reusable workflow or use action step), then npm for local/scripted use.
+   - **Minimal (CI)**: Call this repo's reusable workflow (see GitHub Actions section) or add a step that uses the action; no npm install needed.
    - Local installation (`npm install docspec`)
    - Global installation (`npm install -g docspec`)
    - Constraint: Keep concise, no version-specific details
@@ -115,7 +114,7 @@ The README must contain these sections in this order. **GitHub Actions (use on y
 - Action inputs/outputs must match action.yml exactly
 - File paths: docspecs under .docspec/ (e.g. .docspec/README.docspec.md for README.md)
 - Workflow references should use actual file names (.github/workflows/docspec-review.yml)
-- **Minimal install example**: Show only `- uses: <repo>/.github/actions/docspec-review@<ref>`. No `with:` block, no optional parameters in that example. Options belong in action.yml or a separate "Advanced" note.
+- **Simplest (reusable workflow)**: Show the full workflow YAML that calls this repo's workflow with `uses: docspec-ai/docspec/.github/workflows/docspec-review.yml@main` and `secrets: inherit`. **Inline (action) example**: Show only `- uses: docspec-ai/docspec/.github/actions/docspec-review@main`; no `with:` in that minimal example. Options belong in action.yml or the reusable-workflow example.
 
 **DO:**
 - Use actual command examples: `docspec create README.md`, `docspec create README.md --overwrite`, `docspec review --base X --merge Y`
@@ -124,7 +123,7 @@ The README must contain these sections in this order. **GitHub Actions (use on y
 - Prefer brevity; one clear example beats long explanations
 
 **DON'T:**
-- In the minimal installation example, include `with:` or optional inputs (e.g. review_files)—it suggests configuration is required and obscures simplicity
+- In the **inline** action example, include `with:` or optional inputs (e.g. review_files)—that example must stay a single line; the reusable-workflow example is where full configuration is shown
 - Describe docspec template sections as "required" or state that sections must contain non-boilerplate content or any minimum length; docspec does not validate
 - Invent CLI flags or options that don't exist in src/cli.ts
 - Document internal APIs not exported from src/index.ts
