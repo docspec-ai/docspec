@@ -6,6 +6,29 @@ Docspec files live under **`.docspec/`**. For a markdown file `README.md` or `do
 
 The **format template** is fully up to you: it lives at **`.docspec/docspec-template.md`**. If you run any docspec command and `.docspec/docspec-template.md` does not exist, it is seeded from the bundled default (the content of `docspec-template.md` in this repo). Edit `.docspec/docspec-template.md` to define your own structure.
 
+## GitHub Actions (use docspec on your project)
+
+Add docspec to your GitHub project to automatically review documentation when PRs are merged.
+
+### Minimal installation
+
+Add a single step to your workflow that uses the action from this repo:
+
+```yaml
+- uses: docspec-ai/docspec/.github/actions/docspec-review@main
+```
+
+See [action.yml](.github/actions/docspec-review/action.yml) for all available inputs and outputs.
+
+### Example workflow
+
+This repo's [`.github/workflows/docspec-review.yml`](.github/workflows/docspec-review.yml) shows how to use the docspec-review action with the [official Claude Code Action](https://github.com/anthropics/claude-code-action):
+
+1. The docspec-review action prepares a prompt file (no LLM, no API keys in docspec itself)
+2. The Claude Code Action runs with that prompt to review and sync documentation
+
+Add `ANTHROPIC_API_KEY` to your repository secrets to enable the Claude step.
+
 ## The Docspec Format
 
 Each `*.docspec.md` file is a specification for another document. The **default** format (used when seeding) is defined in [`docspec-template.md`](docspec-template.md). After seeding, your project uses `.docspec/docspec-template.md`, which you can change.
@@ -13,6 +36,12 @@ Each `*.docspec.md` file is a specification for another document. The **default*
 The default includes 5 sections: Document Purpose, Update Triggers, Expected Structure, Editing Guidelines, Intentional Omissions. Customize the template in `.docspec/docspec-template.md` to match your needs.
 
 ## Installation
+
+### Minimal (CI)
+
+Use the docspec-review action in your workflow — see [Minimal installation](#minimal-installation) under GitHub Actions above. No npm install needed.
+
+### Local or scripted use
 
 ```bash
 npm install docspec
@@ -88,15 +117,9 @@ const { prompt } = await buildDocspecReviewPrompt({
 
 The library also exports: `ensureDocAndDocspec()`, `generateDocspecContent()`, `REQUIRED_SECTIONS`, `SECTION_BOILERPLATE`, `logger`, `LogLevel`, `isDocspecPath`, and types `DocspecReviewOptions`, `EnsureDocAndDocspecOptions`, `EnsureDocAndDocspecResult`.
 
-## GitHub Actions
+## Pre-commit Integration
 
-Docspec’s actions **only produce prompt files**; they do not run an LLM or require API keys.
-
-- **docspec-review** (`.github/actions/docspec-review`) – Produces a prompt file for reviewing/syncing docs. Runs `docspec review` with PR context or specific `review_files`. Outputs `prompt_file` and `has_prompt`. Use with your own LLM (e.g. Claude). The prompt covers syncing existing docspec+markdown, adding new documentation from changes, and adding docspecs for existing markdown that has none.
-
-### Example: run docspec review then Claude
-
-This repo’s [`.github/workflows/docspec-review.yml`](.github/workflows/docspec-review.yml) runs when a PR is merged (or manually with optional review_files): it prepares the prompt with `docspec review`, then runs the [official Claude Code Action](https://github.com/anthropics/claude-code-action) with that prompt. Add `ANTHROPIC_API_KEY` to your repository secrets if you want the Claude step to run.
+Use docspec with pre-commit hooks (target `.docspec/*.docspec.md`).
 
 ## Development
 
