@@ -6,6 +6,22 @@ Docspec files live under **`.docspec/`**. For a markdown file `README.md` or `do
 
 The **format template** is fully up to you: it lives at **`.docspec/docspec-template.md`**. If you run any docspec command and `.docspec/docspec-template.md` does not exist, it is seeded from the bundled default (the content of `docspec-template.md` in this repo). Edit `.docspec/docspec-template.md` to define your own structure.
 
+## GitHub Actions (use docspec on your project)
+
+Docspec's actions **only produce prompt files**; they do not run an LLM or require API keys.
+
+The **docspec-review** action (`.github/actions/docspec-review`) produces a prompt file for reviewing and syncing docs. It runs `docspec review` with PR context or specific `review_files`. Outputs `prompt_file` (absolute path to the generated prompt file, empty if no docspecs found) and `has_prompt` (whether a prompt was generated, true/false). Use with your own LLM (e.g. Claude). The prompt covers syncing existing docspec+markdown, adding new documentation from changes, and adding docspecs for existing markdown that has none.
+
+**Action inputs:**
+- `pr_number`, `base_sha`, `merge_sha`, `base_ref` - PR context (optional, extracted from event if not provided)
+- `review_files` - Optional list of markdown file paths to review (e.g. README.md, docs/deploy.md). If set, only these docspecs are included; no PR diff
+- `changed_files` - Optional list of changed file paths. If set with base/merge, used for discovery
+- `max_docspecs` - Maximum number of docspec files to include (default: 10)
+- `max_diff_chars` - Maximum characters of PR diff to include (default: 120000)
+- `output_file` - Path to write the prompt file (default: prompt.txt)
+
+**Example workflow:** This repo's [`.github/workflows/docspec-review.yml`](.github/workflows/docspec-review.yml) runs when a PR is merged (or manually with optional review_files): it prepares the prompt with `docspec review`, then runs the [official Claude Code Action](https://github.com/anthropics/claude-code-action) with that prompt. Add `ANTHROPIC_API_KEY` to your repository secrets if you want the Claude step to run.
+
 ## The Docspec Format
 
 Each `*.docspec.md` file is a specification for another document. The **default** format (used when seeding) is defined in [`docspec-template.md`](docspec-template.md). After seeding, your project uses `.docspec/docspec-template.md`, which you can change.
@@ -88,15 +104,9 @@ const { prompt } = await buildDocspecReviewPrompt({
 
 The library also exports: `ensureDocAndDocspec()`, `generateDocspecContent()`, `REQUIRED_SECTIONS`, `SECTION_BOILERPLATE`, `logger`, `LogLevel`, `isDocspecPath`, and types `DocspecReviewOptions`, `EnsureDocAndDocspecOptions`, `EnsureDocAndDocspecResult`.
 
-## GitHub Actions
+## Pre-commit Integration
 
-Docspec’s actions **only produce prompt files**; they do not run an LLM or require API keys.
-
-- **docspec-review** (`.github/actions/docspec-review`) – Produces a prompt file for reviewing/syncing docs. Runs `docspec review` with PR context or specific `review_files`. Outputs `prompt_file` and `has_prompt`. Use with your own LLM (e.g. Claude). The prompt covers syncing existing docspec+markdown, adding new documentation from changes, and adding docspecs for existing markdown that has none.
-
-### Example: run docspec review then Claude
-
-This repo’s [`.github/workflows/docspec-review.yml`](.github/workflows/docspec-review.yml) runs when a PR is merged (or manually with optional review_files): it prepares the prompt with `docspec review`, then runs the [official Claude Code Action](https://github.com/anthropics/claude-code-action) with that prompt. Add `ANTHROPIC_API_KEY` to your repository secrets if you want the Claude step to run.
+Use docspec with pre-commit hooks to validate docspecs automatically. Target `.docspec/*.docspec.md` files in your hook configuration.
 
 ## Development
 
