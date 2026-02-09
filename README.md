@@ -1,6 +1,6 @@
 # docspec
 
-Docspec is a specification format and toolchain for documentation that agents keep in sync with your docs. **The primary way to use docspec is the GitHub workflow**: add one action step and an LLM (e.g. Claude) reviews and updates documentation on PR merge. The workflow does use an LLM; API keys live in your repository secrets, not in docspec. The CLI is optional and only produces prompt output (no LLM in the docspec tool itself).
+Docspec is a spec format and toolchain for keeping docs aligned with explicit specs. **The primary way to use docspec is the GitHub workflow**: add one action step and an LLM (e.g. Claude) reviews and updates documentation on PR merge. The workflow does use an LLM; API keys live in your repository secrets, not in docspec. The CLI is optional and only produces prompt output (no LLM in the docspec tool itself).
 
 Keep docs aligned with their specs; review is automated and runs in CI; you choose the LLM.
 
