@@ -2,7 +2,7 @@
 
 import { Command } from "commander";
 import * as path from "path";
-import { ensureDocAndDocspec } from "./create";
+import { copyLatestBoilerplate, ensureDocAndDocspec } from "./create";
 import { logger } from "./logger";
 import { markdownToDocspecPath } from "./path-utils";
 import { buildDocspecReviewPrompt, ensureDocspecPromptFile } from "./review";
@@ -16,16 +16,24 @@ program
 
 const createCmd = program
   .command("create")
-  .description("Create markdown and docspec files from the template. Creates the file and .docspec/<path>.docspec.md if missing.")
+  .description("Create markdown and docspec files from the template. With no arguments, copies the latest boilerplate (docspec-prompt.md, docspec-template.md) into .docspec/. With <markdown_path>, creates the file and .docspec/<path>.docspec.md if missing.")
   .option("--overwrite", "Overwrite existing docspec file only (markdown is never overwritten); default is to skip when docspec exists")
-  .argument("<markdown_path>", "Path to markdown file (e.g. README.md, docs/deploy.md).")
-  .action(async (markdownPath: string) => {
+  .argument("[markdown_path]", "Path to markdown file (e.g. README.md, docs/deploy.md). Omit to only copy latest boilerplate into .docspec/.")
+  .action(async (markdownPath: string | undefined) => {
     const opts = program.opts();
     logger.setVerbose(opts.verbose || false);
-    const overwrite = Boolean(createCmd.opts().overwrite);
+    const cwd = process.cwd().replace(/\\/g, "/");
     try {
-      const resolved = path.resolve(process.cwd(), markdownPath).replace(/\\/g, "/");
-      const cwd = process.cwd().replace(/\\/g, "/");
+      if (markdownPath === undefined || markdownPath === "") {
+        const { promptCopied, templateCopied } = await copyLatestBoilerplate(cwd);
+        const parts: string[] = [];
+        if (promptCopied) parts.push(".docspec/docspec-prompt.md");
+        if (templateCopied) parts.push(".docspec/docspec-template.md");
+        logger.success(`Copied latest boilerplate: ${parts.join(", ")}`);
+        return;
+      }
+      const overwrite = Boolean(createCmd.opts().overwrite);
+      const resolved = path.resolve(cwd, markdownPath).replace(/\\/g, "/");
       const relativeMd = resolved.startsWith(cwd)
         ? path.relative(cwd, resolved).replace(/\\/g, "/")
         : markdownPath;

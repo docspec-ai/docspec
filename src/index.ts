@@ -3,10 +3,15 @@
  */
 
 export {
+  copyLatestBoilerplate,
   generateDocspecContent,
   ensureDocAndDocspec,
 } from "./create";
-export type { EnsureDocAndDocspecOptions, EnsureDocAndDocspecResult } from "./create";
+export type {
+  CopyLatestBoilerplateResult,
+  EnsureDocAndDocspecOptions,
+  EnsureDocAndDocspecResult,
+} from "./create";
 export {
   markdownToDocspecPath,
   docspecToMarkdownPath,

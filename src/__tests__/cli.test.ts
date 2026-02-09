@@ -48,7 +48,35 @@ describe("CLI", () => {
     }
   };
 
-  describe("create command (docspec create <markdown_path>)", () => {
+  describe("create command (docspec create [markdown_path])", () => {
+    it("should copy latest boilerplate when run with no arguments", async () => {
+      const result = await runCli("create");
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain("Copied latest boilerplate");
+      expect(result.stdout).toContain(".docspec/docspec-prompt.md");
+      expect(result.stdout).toContain(".docspec/docspec-template.md");
+      const promptPath = path.join(tempDir, ".docspec", "docspec-prompt.md");
+      const templatePath = path.join(tempDir, ".docspec", "docspec-template.md");
+      const promptContent = await fs.readFile(promptPath, "utf-8");
+      const templateContent = await fs.readFile(templatePath, "utf-8");
+      expect(promptContent).toContain("docspec");
+      expect(templateContent).toContain("{{TARGET_FILE}}");
+    });
+
+    it("should overwrite existing boilerplate when run with no arguments", async () => {
+      await fs.mkdir(path.join(tempDir, ".docspec"), { recursive: true });
+      await fs.writeFile(path.join(tempDir, ".docspec", "docspec-prompt.md"), "# Old prompt", "utf-8");
+      await fs.writeFile(path.join(tempDir, ".docspec", "docspec-template.md"), "# Old template", "utf-8");
+      const result = await runCli("create");
+      expect(result.code).toBe(0);
+      const promptContent = await fs.readFile(path.join(tempDir, ".docspec", "docspec-prompt.md"), "utf-8");
+      const templateContent = await fs.readFile(path.join(tempDir, ".docspec", "docspec-template.md"), "utf-8");
+      expect(promptContent).not.toContain("Old prompt");
+      expect(promptContent).toContain("docspec");
+      expect(templateContent).not.toContain("Old template");
+      expect(templateContent).toContain("{{TARGET_FILE}}");
+    });
+
     it("should seed .docspec/docspec-template.md from default when missing", async () => {
       const result = await runCli("create seed-test.md");
       expect(result.code).toBe(0);

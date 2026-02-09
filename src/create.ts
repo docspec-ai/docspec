@@ -9,6 +9,63 @@ import { markdownToDocspecPath } from "./path-utils";
 
 const EMPTY_MARKDOWN_CONTENT = "";
 
+/** Path to bundled boilerplate (package root when running from dist/). */
+const BUNDLE_DIR = path.join(__dirname, "..");
+
+export interface CopyLatestBoilerplateResult {
+  promptCopied: boolean;
+  templateCopied: boolean;
+}
+
+/**
+ * Copy the latest bundled docspec-prompt.md and docspec-template.md into .docspec/.
+ * Overwrites existing files so the project gets the current boilerplate.
+ */
+export async function copyLatestBoilerplate(repoRoot: string): Promise<CopyLatestBoilerplateResult> {
+  const docspecDir = path.join(repoRoot, ".docspec");
+  const promptSrc = path.join(BUNDLE_DIR, "docspec-prompt.md");
+  const templateSrc = path.join(BUNDLE_DIR, "docspec-template.md");
+  const promptDest = path.join(docspecDir, "docspec-prompt.md");
+  const templateDest = path.join(docspecDir, "docspec-template.md");
+
+  let promptCopied = false;
+  let templateCopied = false;
+
+  await fs.mkdir(docspecDir, { recursive: true });
+
+  try {
+    const promptContent = await fs.readFile(promptSrc, "utf-8");
+    await fs.writeFile(promptDest, promptContent, "utf-8");
+    promptCopied = true;
+    logger.debug(`Copied docspec-prompt.md to .docspec/`);
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") {
+      throw new Error(
+        `Bundled docspec-prompt.md not found at ${promptSrc}. Ensure the docspec package is installed correctly.`
+      );
+    }
+    throw e;
+  }
+
+  try {
+    const templateContent = await fs.readFile(templateSrc, "utf-8");
+    await fs.writeFile(templateDest, templateContent, "utf-8");
+    templateCopied = true;
+    logger.debug(`Copied docspec-template.md to .docspec/`);
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") {
+      throw new Error(
+        `Bundled docspec-template.md not found at ${templateSrc}. Ensure the docspec package is installed correctly.`
+      );
+    }
+    throw e;
+  }
+
+  return { promptCopied, templateCopied };
+}
+
 export interface EnsureDocAndDocspecOptions {
   /** If true, overwrite existing docspec file (markdown is never overwritten). If false, skip when docspec exists. */
   overwrite?: boolean;
