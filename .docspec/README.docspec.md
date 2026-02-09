@@ -26,7 +26,7 @@ This README serves as the primary entry point and comprehensive documentation fo
 
 - **What is docspec?** - A specification format and toolchain for agent-maintained documentation
 - **How do I add docspec to my GitHub project?** - Primary: GitHub Actions integration (docspec-review action, example workflow). This must be the first concrete use case readers see so they can quickly implement docspec on their own repo.
-- **What is the docspec format?** - High-level overview and reference to docspec-template.md
+- **What is the docspec format?** - High-level overview and reference to both docspec-template.md (structure of each docspec file) and docspec-prompt.md (instructions used when running docspec review)
 - **How do I install it?** - Super minimal installation first: in your own workflow add a step that uses the action from this repo (e.g. `uses: <this-repo>/.github/actions/docspec-review@main`); then npm installation methods (local and global) for local or scripted use
 - **How do I use it from the CLI or as a library?** - Secondary: CLI commands and TypeScript API for users who need local or programmatic use
 - **How do I integrate it elsewhere?** - Pre-commit hooks
@@ -47,6 +47,7 @@ This README serves as the primary entry point and comprehensive documentation fo
 - **CLI changes** (src/cli.ts): New commands, modified command arguments, changed command behavior
 - **Validation logic** (src/validator.ts): New validation rules, changed error messages, modified validation behavior
 - **Docspec format definition** (docspec-template.md): Changes to required sections, section names, validation rules
+- **Docspec review prompt** (docspec-prompt.md): Changes to the steps or instructions appended when running docspec review
 - **GitHub Action configuration** (action.yml): New inputs/outputs, changed defaults, modified descriptions
 - **Workflow files** (.github/workflows/docspec-review.yml): Workflow name changes, trigger changes, new steps or configuration
 - **Installation method** (package.json): Package name changes, new installation requirements
@@ -67,7 +68,7 @@ This README serves as the primary entry point and comprehensive documentation fo
 
 The README must contain these sections in this order. **GitHub Actions (use on your project) is the primary path and must appear early**; CLI and library usage are secondary and appear later.
 
-1. **Title and Description**: Package name (`# docspec`) and one-sentence description; note that docspec does not run an LLM and that docspec files live under .docspec/
+1. **Title and Description**: Package name (`# docspec`) and one-sentence description; note that docspec does not run an LLM and that docspec files live under .docspec/. Briefly mention the two key files: docspec-template (format for each docspec) and docspec-prompt (instructions for the review flow).
 
 2. **GitHub Actions (use docspec on your project)**: Must appear near the top, immediately after the intro, so readers quickly see how to add docspec to their own GitHub project.
    - **Minimal installation**: The code example must be exactly one step and one line in the YAML block: `- uses: <this-repo>/.github/actions/docspec-review@main`. No `name:` line, no `with:` block, no optional parameters (e.g. review_files) in that example—readers must see the simplest possible install. Optional inputs are documented only via a link to action.yml, not in the minimal example. Use actual repo path and ref in the README.
@@ -76,11 +77,10 @@ The README must contain these sections in this order. **GitHub Actions (use on y
    - Reference this repo’s workflow (`.github/workflows/docspec-review.yml`) and action (`.github/actions/docspec-review`); link to action.yml for inputs/outputs—do not list them all in the README body.
    - Constraint: Keep this section short and direct; it is the primary use case
 
-3. **The Docspec Format**: High-level overview of the format
-   - Link to docspec-template.md as the definitive format specification
-   - List the 5 required sections by name
-   - Explain validation requirements (non-boilerplate content, 50-character minimum)
-   - Constraint: Do NOT duplicate the full format specification; link to docspec-template.md instead
+3. **The Docspec Format**: High-level overview of the format and review flow
+   - **docspec-template**: Defines the structure of each `*.docspec.md` file (Document Purpose, Update Triggers, Expected Structure, Editing Guidelines, Intentional Omissions). Used when creating new docspecs (`docspec create`); the project copy is `.docspec/docspec-template.md`, seeded from the repo’s docspec-template.md if missing. Link to docspec-template.md as the definitive format specification. List the 5 required sections by name. Explain validation requirements (non-boilerplate content, 50-character minimum). Do NOT duplicate the full format; link to docspec-template.md.
+   - **docspec-prompt**: The task instructions appended to the output when running `docspec review`. It tells the agent how to act (compare target to docspec, update if needed, create new docs or docspecs when appropriate, open a PR). Customizable at `.docspec/docspec-prompt.md`; seeded from the repo’s docspec-prompt.md if missing. Link to docspec-prompt.md so readers understand the review flow.
+   - Constraint: Keep this section a high-level overview; link to docspec-template.md and docspec-prompt.md for details
 
 4. **Installation**: Minimal installation first, then npm for local/scripted use.
    - **Minimal (CI)**: Add a step that uses the action from this repo (e.g. `uses: <this-repo>/.github/actions/docspec-review@main`); no npm install needed.
@@ -117,7 +117,7 @@ The README must contain these sections in this order. **GitHub Actions (use on y
 **DO:**
 - Use actual command examples: `docspec create README.md`, `docspec create README.md --overwrite`, `docspec review --base X --merge Y`
 - Reference source files when describing behavior
-- Link to definitive sources: action.yml for configuration options, docspec-template.md for format details
+- Link to definitive sources: action.yml for configuration options, docspec-template.md for format details, docspec-prompt.md for review-task instructions
 - Prefer brevity; one clear example beats long explanations
 
 **DON'T:**
@@ -141,6 +141,6 @@ This README deliberately excludes:
 - Build configuration (tsconfig.json, build scripts)
 - Package.json configuration details beyond installation
 
-**Docspec format specification:**
-- The detailed format specification lives in docspec-template.md
-- The README provides only a high-level overview and links to the format file
+**Docspec format and review prompt:**
+- The detailed format specification lives in docspec-template.md; the review-task instructions live in docspec-prompt.md
+- The README provides only a high-level overview and links to both files
