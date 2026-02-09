@@ -39,7 +39,7 @@ The default includes 5 sections: Document Purpose, Update Triggers, Expected Str
 
 ### Minimal (CI)
 
-Add a step that uses the action from this repo (e.g. `uses: docspec-ai/docspec/.github/actions/docspec-review@main`); no npm install needed.
+Use the docspec-review action in your workflow — see [Minimal installation](#minimal-installation) under GitHub Actions above. No npm install needed.
 
 ### Local or scripted use
 
