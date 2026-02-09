@@ -16,5 +16,5 @@
 4. For any markdown file listed above as having no docspec, decide whether it should have one. If so, run `docspec create <path>` and include the new docspec file in your PR.
 5. Only update markdown files when necessary to satisfy their docspecs—avoid unnecessary changes.
 6. Use the Edit tool to modify markdown files directly when changes are needed.
-7. When you have made any documentation changes: create a new branch, commit your changes, push the branch, and open a pull request using the gh CLI (e.g. gh pr create). If you made no file changes, do not create a branch or PR—treat the branch/PR step as not applicable and do not mark it complete as if a PR was opened.
+7. When you have made any documentation changes: create a new branch whose name starts with `docspec/` (e.g. `docspec/docs-sync`), commit your changes, push the branch, and open a pull request using the gh CLI (e.g. gh pr create). Using the `docspec/` prefix ensures the docspec-review workflow will not run again when this PR is merged. If you made no file changes, do not create a branch or PR—treat the branch/PR step as not applicable and do not mark it complete as if a PR was opened.
 8. Do not provide any text output—files are modified directly using tools.

@@ -42,7 +42,12 @@ concurrency:
 
 jobs:
   docspec_review_then_claude:
-    if: ${{ github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch' }}
+    # Skip when the merged PR is from a docspec-generated branch to avoid re-running on docspec's own PRs.
+    if: >-
+      (github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch')
+      && (github.event_name != 'pull_request'
+          || (!startsWith(github.event.pull_request.head.ref, 'docspec/')
+              && !startsWith(github.event.pull_request.head.ref, 'docspec-')))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
