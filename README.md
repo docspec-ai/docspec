@@ -4,7 +4,9 @@ Docspec is a specification format and toolchain for documentation that is mainta
 
 Docspec files live under **`.docspec/`**. For a markdown file `README.md` or `docs/deploy.md`, the docspec is `.docspec/README.docspec.md` or `.docspec/docs/deploy.docspec.md` respectively.
 
-The **format template** is fully up to you: it lives at **`.docspec/docspec-template.md`**. If you run any docspec command and `.docspec/docspec-template.md` does not exist, it is seeded from the bundled default (the content of `docspec-template.md` in this repo). Edit `.docspec/docspec-template.md` to define your own structure.
+Two key files define how docspec works:
+- **docspec-template.md**: Defines the structure of each `*.docspec.md` file (the format specification)
+- **docspec-prompt.md**: Contains instructions used when running `docspec review` (tells agents how to compare docs to their docspecs)
 
 ## GitHub Actions (use docspec on your project)
 
@@ -31,9 +33,23 @@ Add `ANTHROPIC_API_KEY` to your repository secrets to enable the Claude step.
 
 ## The Docspec Format
 
-Each `*.docspec.md` file is a specification for another document. The **default** format (used when seeding) is defined in [`docspec-template.md`](docspec-template.md). After seeding, your project uses `.docspec/docspec-template.md`, which you can change.
+Each `*.docspec.md` file is a specification for another document.
 
-The default includes 5 sections: Document Purpose, Update Triggers, Expected Structure, Editing Guidelines, Intentional Omissions. Customize the template in `.docspec/docspec-template.md` to match your needs.
+### docspec-template
+
+The **format template** defines the structure of each `*.docspec.md` file. It lives at **`.docspec/docspec-template.md`** (seeded from the bundled [`docspec-template.md`](docspec-template.md) if missing). The default template includes 5 required sections:
+
+1. Document Purpose
+2. Update Triggers
+3. Expected Structure
+4. Editing Guidelines
+5. Intentional Omissions
+
+Each section must contain non-boilerplate content (minimum 50 characters). Customize `.docspec/docspec-template.md` to define your own structure.
+
+### docspec-prompt
+
+The **docspec prompt** contains task instructions appended to the output when running `docspec review`. It tells the agent how to act: compare the target document to its docspec, update if needed, create new docs or docspecs when appropriate, and open a PR. It lives at **`.docspec/docspec-prompt.md`** (seeded from the bundled [`docspec-prompt.md`](docspec-prompt.md) if missing). Customize `.docspec/docspec-prompt.md` to change the review flow.
 
 ## Installation
 
