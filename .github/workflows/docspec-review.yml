@@ -68,9 +68,9 @@ jobs:
           prompt: ${{ steps.prompt_content.outputs.content }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          # In CI there is no user to approve file edits or git commands. Claude Code uses a
-          # permission layer (defaultMode) that normally prompts for approval. Bypassing
-          # permissions is safe here because the job runs in an isolated runner.
+          # In CI there is no user to approve file edits or git commands. Bypass the
+          # permission layer via CLI flag so the agent can edit files and run git.
+          claude_args: --dangerously-skip-permissions
           settings: '{"defaultMode": "bypassPermissions"}'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
