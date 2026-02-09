@@ -6,6 +6,46 @@ Docspec files live under **`.docspec/`**. For a markdown file `README.md` or `do
 
 The **format template** is fully up to you: it lives at **`.docspec/docspec-template.md`**. If you run any docspec command and `.docspec/docspec-template.md` does not exist, it is seeded from the bundled default (the content of `docspec-template.md` in this repo). Edit `.docspec/docspec-template.md` to define your own structure.
 
+## GitHub Actions (use docspec on your project)
+
+### Minimal installation
+
+To use docspec in your GitHub Actions workflow without any npm installation, add a step that uses the docspec-review action from this repo:
+
+```yaml
+- name: Prepare docspec review prompt
+  uses: docspec-ai/docspec/.github/actions/docspec-review@main
+  with:
+    review_files: 'README.md'  # Optional: specific files to review
+```
+
+The action produces a prompt file only—no LLM execution, no API keys required. You then feed the prompt to your own LLM.
+
+### docspec-review action
+
+The `docspec-review` action (`.github/actions/docspec-review`) produces a prompt file for reviewing/syncing docs. It runs `docspec review` with PR context or specific `review_files`. Outputs `prompt_file` and `has_prompt`.
+
+**Inputs:**
+- `pr_number`, `base_sha`, `merge_sha`, `base_ref` – PR context (auto-extracted from event or manually provided)
+- `review_files` – Comma-separated markdown file(s) to review (e.g. `README.md, docs/deploy.md`)
+- `changed_files` – Comma-separated changed file paths (for discovery with base/merge)
+- `max_docspecs`, `max_diff_chars` – Limits (defaults: 10, 120000)
+- `output_file` – Output path (default: `prompt.txt`)
+
+**Outputs:**
+- `prompt_file` – Absolute path to the generated prompt file
+- `has_prompt` – Whether a prompt was generated (true/false)
+
+### Example workflow: docspec review then Claude
+
+This repo's [`.github/workflows/docspec-review.yml`](.github/workflows/docspec-review.yml) demonstrates the full workflow:
+
+1. Runs when a PR is merged (or manually with optional review_files)
+2. Prepares the prompt with `docspec-review` action
+3. Runs the [official Claude Code Action](https://github.com/anthropics/claude-code-action) with that prompt
+
+Add `ANTHROPIC_API_KEY` to your repository secrets for the Claude step to run.
+
 ## The Docspec Format
 
 Each `*.docspec.md` file is a specification for another document. The **default** format (used when seeding) is defined in [`docspec-template.md`](docspec-template.md). After seeding, your project uses `.docspec/docspec-template.md`, which you can change.
@@ -14,12 +54,16 @@ The default includes 5 sections: Document Purpose, Update Triggers, Expected Str
 
 ## Installation
 
+For local or scripted use, install docspec via npm:
+
+**Minimal (CI):** Add a step that uses `docspec-ai/docspec/.github/actions/docspec-review@main`; no npm install needed.
+
+**Local installation:**
 ```bash
 npm install docspec
 ```
 
-Or install globally:
-
+**Global installation:**
 ```bash
 npm install -g docspec
 ```
@@ -88,15 +132,9 @@ const { prompt } = await buildDocspecReviewPrompt({
 
 The library also exports: `ensureDocAndDocspec()`, `generateDocspecContent()`, `REQUIRED_SECTIONS`, `SECTION_BOILERPLATE`, `logger`, `LogLevel`, `isDocspecPath`, and types `DocspecReviewOptions`, `EnsureDocAndDocspecOptions`, `EnsureDocAndDocspecResult`.
 
-## GitHub Actions
+## Pre-commit Integration
 
-Docspec’s actions **only produce prompt files**; they do not run an LLM or require API keys.
-
-- **docspec-review** (`.github/actions/docspec-review`) – Produces a prompt file for reviewing/syncing docs. Runs `docspec review` with PR context or specific `review_files`. Outputs `prompt_file` and `has_prompt`. Use with your own LLM (e.g. Claude). The prompt covers syncing existing docspec+markdown, adding new documentation from changes, and adding docspecs for existing markdown that has none.
-
-### Example: run docspec review then Claude
-
-This repo’s [`.github/workflows/docspec-review.yml`](.github/workflows/docspec-review.yml) runs when a PR is merged (or manually with optional review_files): it prepares the prompt with `docspec review`, then runs the [official Claude Code Action](https://github.com/anthropics/claude-code-action) with that prompt. Add `ANTHROPIC_API_KEY` to your repository secrets if you want the Claude step to run.
+Use docspec with pre-commit hooks to validate docspecs before committing. Configure `.pre-commit-config.yaml` to target `.docspec/*.docspec.md` files.
 
 ## Development
 
