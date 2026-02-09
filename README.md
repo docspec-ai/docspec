@@ -37,7 +37,7 @@ Each `*.docspec.md` file is a specification for another document.
 
 ### docspec-template
 
-The **format template** defines the structure of each `*.docspec.md` file. It lives at **`.docspec/docspec-template.md`** (seeded from the bundled [`docspec-template.md`](docspec-template.md) if missing). The default template includes 5 required sections:
+The **format template** defines the structure of each `*.docspec.md` file. It lives at **`.docspec/docspec-template.md`** (seeded from the bundled [`docspec-template.md`](docspec-template.md) if missing). The default template includes 5 sections:
 
 1. Document Purpose
 2. Update Triggers
@@ -45,7 +45,7 @@ The **format template** defines the structure of each `*.docspec.md` file. It li
 4. Editing Guidelines
 5. Intentional Omissions
 
-Each section must contain non-boilerplate content (minimum 50 characters). Customize `.docspec/docspec-template.md` to define your own structure.
+See [`docspec-template.md`](docspec-template.md) for the definitive format specification. Customize `.docspec/docspec-template.md` to define your own structure.
 
 ### docspec-prompt
 
