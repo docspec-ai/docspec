@@ -1,6 +1,8 @@
 # docspec
 
-Docspec is a specification format and toolchain for documentation that is maintained by agents. **Docspec does not run an LLM**—it produces prompt output that you feed into your own LLM CLI (e.g. Claude, Codex).
+Docspec is a specification format and toolchain for documentation that agents keep in sync with your docs. **The primary way to use docspec is the GitHub workflow**: add one action step and an LLM (e.g. Claude) reviews and updates documentation on PR merge. The workflow does use an LLM; API keys live in your repository secrets, not in docspec. The CLI is optional and only produces prompt output (no LLM in the docspec tool itself).
+
+Keep docs aligned with their specs; review is automated and runs in CI; you choose the LLM.
 
 Docspec files live under **`.docspec/`**. For a markdown file `README.md` or `docs/deploy.md`, the docspec is `.docspec/README.docspec.md` or `.docspec/docs/deploy.docspec.md` respectively.
 
