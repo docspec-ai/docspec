@@ -14,6 +14,10 @@
 * Preserve existing content that already complies.  
 * Do not invent content, sections, or facts not implied by this docspec or the repository.
 
+**Mandatory corrections when the README does not comply:**
+* **Minimal installation code example**: If the example includes a `with:` block, a `name:` line, or any optional parameters (e.g. `review_files`), replace the entire example with exactly one step: `- uses: docspec-ai/docspec/.github/actions/docspec-review@main` (and nothing else in that code block). The minimal example must show only that single line so readers see the simplest possible install.
+* **Action inputs/outputs in body**: If the README contains a subsection that lists all action inputs and outputs (e.g. **Inputs:** / **Outputs:** with multiple bullets), remove that subsection and replace it with one sentence that links to [action.yml](.github/actions/docspec-review/action.yml) for options (e.g. "Optional inputs and outputs: see action.yml."). Do not duplicate the full list in the README.
+
 
 
 ## 1. Document Purpose
@@ -66,11 +70,11 @@ The README must contain these sections in this order. **GitHub Actions (use on y
 1. **Title and Description**: Package name (`# docspec`) and one-sentence description; note that docspec does not run an LLM and that docspec files live under .docspec/
 
 2. **GitHub Actions (use docspec on your project)**: Must appear near the top, immediately after the intro, so readers quickly see how to add docspec to their own GitHub project.
-   - **Minimal installation**: Recommend adding a step that uses the action from this repo in your workflow (e.g. `uses: <this-repo>/.github/actions/docspec-review@main`); no copy and no package install required for CI. The README must use the actual repo path and ref (e.g. branch or tag).
+   - **Minimal installation**: The code example must be exactly one step and one line in the YAML block: `- uses: <this-repo>/.github/actions/docspec-review@main`. No `name:` line, no `with:` block, no optional parameters (e.g. review_files) in that example—readers must see the simplest possible install. Optional inputs are documented only via a link to action.yml, not in the minimal example. Use actual repo path and ref in the README.
    - docspec-review action is prompt-only (no LLM, no API keys in docspec itself)
    - Example workflow: run on PR merge (or manual), prepare prompt with the action, then run your own LLM (e.g. Claude Code Action)
-   - Reference this repo’s workflow (`.github/workflows/docspec-review.yml`) and action (`.github/actions/docspec-review`); action inputs/outputs must match action.yml
-   - Constraint: Keep this section concise and actionable; it is the primary use case
+   - Reference this repo’s workflow (`.github/workflows/docspec-review.yml`) and action (`.github/actions/docspec-review`); link to action.yml for inputs/outputs—do not list them all in the README body.
+   - Constraint: Keep this section short and direct; it is the primary use case
 
 3. **The Docspec Format**: High-level overview of the format
    - Link to docspec-template.md as the definitive format specification
@@ -108,16 +112,20 @@ The README must contain these sections in this order. **GitHub Actions (use on y
 - Action inputs/outputs must match action.yml exactly
 - File paths: docspecs under .docspec/ (e.g. .docspec/README.docspec.md for README.md)
 - Workflow references should use actual file names (.github/workflows/docspec-review.yml)
+- **Minimal install example**: Show only `- uses: <repo>/.github/actions/docspec-review@<ref>`. No `with:` block, no optional parameters in that example. Options belong in action.yml or a separate "Advanced" note.
 
 **DO:**
 - Use actual command examples: `docspec create README.md`, `docspec create README.md --overwrite`, `docspec review --base X --merge Y`
 - Reference source files when describing behavior
 - Link to definitive sources: action.yml for configuration options, docspec-template.md for format details
+- Prefer brevity; one clear example beats long explanations
 
 **DON'T:**
+- In the minimal installation example, include `with:` or optional inputs (e.g. review_files)—it suggests configuration is required and obscures simplicity
 - Invent CLI flags or options that don't exist in src/cli.ts
 - Document internal APIs not exported from src/index.ts
 - State that docspec runs an LLM or requires API keys (it only produces prompts)
+- Duplicate full action input/output lists in the README; link to action.yml instead
 
 ## 5. Intentional Omissions
 
