@@ -17,6 +17,7 @@
 **Mandatory corrections when the README does not comply:**
 * **Minimal installation code example**: If the example includes a `with:` block, a `name:` line, or any optional parameters (e.g. `review_files`), replace the entire example with exactly one step: `- uses: docspec-ai/docspec/.github/actions/docspec-review@main` (and nothing else in that code block). The minimal example must show only that single line so readers see the simplest possible install.
 * **Action inputs/outputs in body**: If the README contains a subsection that lists all action inputs and outputs (e.g. **Inputs:** / **Outputs:** with multiple bullets), remove that subsection and replace it with one sentence that links to [action.yml](.github/actions/docspec-review/action.yml) for options (e.g. "Optional inputs and outputs: see action.yml."). Do not duplicate the full list in the README.
+* **Template sections and validation**: Do not describe docspec template sections as "required." Use language such as "The default template includes 5 sections" (then list them). Do not state that each section must contain non-boilerplate content or any minimum length (e.g. 50 characters); docspec does not validate this. Remove any such validation claims.
 
 
 
@@ -46,13 +47,13 @@ This README serves as the primary entry point and comprehensive documentation fo
 
 - **CLI changes** (src/cli.ts): New commands, modified command arguments, changed command behavior
 - **Validation logic** (src/validator.ts): New validation rules, changed error messages, modified validation behavior
-- **Docspec format definition** (docspec-template.md): Changes to required sections, section names, validation rules
+- **Docspec format definition** (docspec-template.md): Changes to template sections, section names, or structure
 - **Docspec review prompt** (docspec-prompt.md): Changes to the steps or instructions appended when running docspec review
 - **GitHub Action configuration** (action.yml): New inputs/outputs, changed defaults, modified descriptions
 - **Workflow files** (.github/workflows/docspec-review.yml): Workflow name changes, trigger changes, new steps or configuration
 - **Installation method** (package.json): Package name changes, new installation requirements
 - **File naming convention**: Docspec files live under .docspec/ (e.g. .docspec/README.docspec.md for README.md)
-- **Required sections** (src/constants.ts): Changes to REQUIRED_SECTIONS array or section definitions
+- **Template sections** (src/constants.ts): Changes to default section list or section definitions
 - **Pre-commit hook configuration** (.pre-commit-config.yaml): Changes to hook setup or usage
 - **Library API exports** (src/index.ts): New exported functions, types, or constants; removed exports; changed function signatures
 
@@ -78,7 +79,7 @@ The README must contain these sections in this order. **GitHub Actions (use on y
    - Constraint: Keep this section short and direct; it is the primary use case
 
 3. **The Docspec Format**: High-level overview of the format and review flow
-   - **docspec-template**: Defines the structure of each `*.docspec.md` file (Document Purpose, Update Triggers, Expected Structure, Editing Guidelines, Intentional Omissions). Used when creating new docspecs (`docspec create`); the project copy is `.docspec/docspec-template.md`, seeded from the repo’s docspec-template.md if missing. Link to docspec-template.md as the definitive format specification. List the 5 required sections by name. Explain validation requirements (non-boilerplate content, 50-character minimum). Do NOT duplicate the full format; link to docspec-template.md.
+   - **docspec-template**: Defines the structure of each `*.docspec.md` file (Document Purpose, Update Triggers, Expected Structure, Editing Guidelines, Intentional Omissions). Used when creating new docspecs (`docspec create`); the project copy is `.docspec/docspec-template.md`, seeded from the repo’s docspec-template.md if missing. Link to docspec-template.md as the definitive format specification. Describe the default template as including 5 sections (Document Purpose, Update Triggers, Expected Structure, Editing Guidelines, Intentional Omissions)—do not call them "required." Do NOT state that sections must contain non-boilerplate content or any minimum length; docspec does not validate. Do NOT duplicate the full format; link to docspec-template.md.
    - **docspec-prompt**: The task instructions appended to the output when running `docspec review`. It tells the agent how to act (compare target to docspec, update if needed, create new docs or docspecs when appropriate, open a PR). Customizable at `.docspec/docspec-prompt.md`; seeded from the repo’s docspec-prompt.md if missing. Link to docspec-prompt.md so readers understand the review flow.
    - Constraint: Keep this section a high-level overview; link to docspec-template.md and docspec-prompt.md for details
 
@@ -122,6 +123,7 @@ The README must contain these sections in this order. **GitHub Actions (use on y
 
 **DON'T:**
 - In the minimal installation example, include `with:` or optional inputs (e.g. review_files)—it suggests configuration is required and obscures simplicity
+- Describe docspec template sections as "required" or state that sections must contain non-boilerplate content or any minimum length; docspec does not validate
 - Invent CLI flags or options that don't exist in src/cli.ts
 - Document internal APIs not exported from src/index.ts
 - State that docspec runs an LLM or requires API keys (it only produces prompts)
