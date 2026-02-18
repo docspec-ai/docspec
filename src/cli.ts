@@ -67,6 +67,7 @@ program
   )
   .option("--base <sha>", "Base SHA for git diff (e.g. PR base)")
   .option("--merge <sha>", "Merge SHA for git diff (e.g. PR merge commit)")
+  .option("--base-ref <branch>", "Base branch name (e.g. main, develop). Used to tell the agent which branch to target when creating PRs.")
   .option("--output <file>", "Write prompt to this file", "prompt.txt")
   .option("--max-docspecs <n>", "Max docspecs to include", "10")
   .option("--max-diff-chars <n>", "Max characters of diff to include", "120000")
@@ -80,6 +81,7 @@ program
       : undefined;
     const base = cmdOpts.base as string | undefined;
     const merge = cmdOpts.merge as string | undefined;
+    const baseRef = cmdOpts.baseRef as string | undefined;
     if (!reviewFiles?.length && !changedFiles?.length && (!base || !merge)) {
       logger.error(
         "Provide markdown file(s) to review (e.g. docspec review README.md), or --changed-files, or both --base and --merge for git diff."
@@ -92,6 +94,7 @@ program
         changedFiles,
         base,
         merge,
+        baseRef,
         outputPath: (cmdOpts.output as string) || "prompt.txt",
         maxDocspecs: parseInt(String(cmdOpts.maxDocspecs), 10),
         maxDiffChars: parseInt(String(cmdOpts.maxDiffChars), 10),

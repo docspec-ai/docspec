@@ -62,29 +62,11 @@ jobs:
           pr_number: ${{ inputs.pr_number || github.event.inputs.pr_number }}
           review_files: ${{ inputs.review_files || github.event.inputs.review_files }}
 
-      - name: Read prompt content
-        id: prompt_content
-        if: steps.docspec.outputs.has_prompt == 'true'
-        run: |
-          PROMPT_FILE="${{ steps.docspec.outputs.prompt_file }}"
-          DELIM="DOCSPEC_EOF_$(date +%s)_$$"
-          echo "content<<$DELIM" >> $GITHUB_OUTPUT
-          cat "$PROMPT_FILE" >> $GITHUB_OUTPUT
-          echo >> $GITHUB_OUTPUT
-          echo "$DELIM" >> $GITHUB_OUTPUT
-
-      - name: Display full prompt
-        if: steps.docspec.outputs.has_prompt == 'true'
-        run: |
-          echo "=== Full prompt being sent to Claude ==="
-          cat "${{ steps.docspec.outputs.prompt_file }}"
-          echo "=== End of prompt ==="
-
       - name: Run Claude Code with docspec prompt
         if: steps.docspec.outputs.has_prompt == 'true'
         uses: anthropics/claude-code-action@v1
         with:
-          prompt: ${{ steps.prompt_content.outputs.content }}
+          prompt: "@${{ steps.docspec.outputs.prompt_file }}"
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           # In CI there is no user to approve file edits or git commands. Bypass the
