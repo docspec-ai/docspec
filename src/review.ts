@@ -89,20 +89,21 @@ function getDiffText(base: string, merge: string, repoRoot: string, maxChars: nu
   let diff: string;
   try {
     // Exclude common lock files and generated files that inflate diff size
+    // Using :! shorthand to avoid shell metacharacter issues with :(exclude)
     const excludePatterns = [
-      ':(exclude)package-lock.json',
-      ':(exclude)yarn.lock',
-      ':(exclude)pnpm-lock.yaml',
-      ':(exclude)poetry.lock',
-      ':(exclude)Pipfile.lock',
-      ':(exclude)Gemfile.lock',
-      ':(exclude)composer.lock',
-      ':(exclude)Cargo.lock',
-      ':(exclude)go.sum',
-      ':(exclude)*.min.js',
-      ':(exclude)*.min.css',
-      ':(exclude)dist/',
-      ':(exclude)build/',
+      ':!package-lock.json',
+      ':!yarn.lock',
+      ':!pnpm-lock.yaml',
+      ':!poetry.lock',
+      ':!Pipfile.lock',
+      ':!Gemfile.lock',
+      ':!composer.lock',
+      ':!Cargo.lock',
+      ':!go.sum',
+      ':!*.min.js',
+      ':!*.min.css',
+      ':!dist/',
+      ':!build/',
     ].join(' ');
     diff = execSync(`git diff ${base}...${merge} -- . ${excludePatterns}`, { encoding: "utf-8", cwd: repoRoot });
   } catch {
