@@ -64,14 +64,12 @@ jobs:
 
       - name: Run Claude Code with docspec prompt
         if: steps.docspec.outputs.has_prompt == 'true'
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action/base-action@v1
         with:
-          prompt: "@${{ steps.docspec.outputs.prompt_file }}"
+          prompt_file: ${{ steps.docspec.outputs.prompt_file }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          # In CI there is no user to approve file edits or git commands. Bypass the
-          # permission layer via CLI flag so the agent can edit files and run git.
           claude_args: --dangerously-skip-permissions
-          settings: '{"defaultMode": "bypassPermissions"}'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
