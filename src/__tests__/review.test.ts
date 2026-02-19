@@ -126,4 +126,35 @@ describe("review", () => {
     );
     expect(agentPromptAfter).toBe(legacyContent);
   });
+
+  it("includes base branch in prompt when baseRef is provided", async () => {
+    await fs.mkdir(path.join(tempDir, ".docspec"), { recursive: true });
+    const docspecContent = "# DOCSPEC: [foo.md](/foo.md)\n\n## 1. Purpose\n\nDescribe foo.";
+    await fs.writeFile(path.join(tempDir, ".docspec", "foo.docspec.md"), docspecContent, "utf-8");
+    await fs.writeFile(path.join(tempDir, "foo.md"), "# Foo content", "utf-8");
+
+    const { prompt } = await buildDocspecReviewPrompt({
+      changedFiles: ["foo.md"],
+      repoRoot: tempDir,
+      baseRef: "develop",
+    });
+
+    expect(prompt).toContain("**Base branch for PR**: develop");
+    expect(prompt).toContain("## Docspec: .docspec/foo.docspec.md");
+  });
+
+  it("does not include base branch line when baseRef is not provided", async () => {
+    await fs.mkdir(path.join(tempDir, ".docspec"), { recursive: true });
+    const docspecContent = "# DOCSPEC: [foo.md](/foo.md)\n\n## 1. Purpose\n\nDescribe foo.";
+    await fs.writeFile(path.join(tempDir, ".docspec", "foo.docspec.md"), docspecContent, "utf-8");
+    await fs.writeFile(path.join(tempDir, "foo.md"), "# Foo content", "utf-8");
+
+    const { prompt } = await buildDocspecReviewPrompt({
+      changedFiles: ["foo.md"],
+      repoRoot: tempDir,
+    });
+
+    expect(prompt).not.toContain("**Base branch for PR**:");
+    expect(prompt).toContain("## Docspec: .docspec/foo.docspec.md");
+  });
 });

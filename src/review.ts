@@ -60,6 +60,8 @@ export interface DocspecReviewOptions {
   base?: string;
   /** Merge SHA for git diff (e.g. PR merge commit). */
   merge?: string;
+  /** Base branch name (e.g. main, develop). Used to tell the agent which branch to target when creating PRs. */
+  baseRef?: string;
   /** Max number of docspecs to include. */
   maxDocspecs?: number;
   /** Max characters of diff to include. */
@@ -81,11 +83,30 @@ function listChangedFiles(base: string, merge: string, repoRoot: string): string
 
 /**
  * Get diff text via git diff base...merge, truncated if needed.
+ * Excludes common non-code files (lock files, generated files) to reduce diff size.
  */
 function getDiffText(base: string, merge: string, repoRoot: string, maxChars: number): string {
   let diff: string;
   try {
-    diff = execSync(`git diff ${base}...${merge}`, { encoding: "utf-8", cwd: repoRoot });
+    // Exclude common lock files and generated files that inflate diff size
+    // Using :! shorthand to avoid shell metacharacter issues with :(exclude)
+    // Each pattern is quoted to prevent shell glob expansion
+    const excludePatterns = [
+      ':!package-lock.json',
+      ':!yarn.lock',
+      ':!pnpm-lock.yaml',
+      ':!poetry.lock',
+      ':!Pipfile.lock',
+      ':!Gemfile.lock',
+      ':!composer.lock',
+      ':!Cargo.lock',
+      ':!go.sum',
+      ':!*.min.js',
+      ':!*.min.css',
+      ':!dist/',
+      ':!build/',
+    ].map(p => `'${p}'`).join(' ');
+    diff = execSync(`git diff ${base}...${merge} -- . ${excludePatterns}`, { encoding: "utf-8", cwd: repoRoot });
   } catch {
     return "";
   }
@@ -350,6 +371,11 @@ export async function buildDocspecReviewPrompt(
 
   const docspecPromptContent = await getDocspecPromptContent(repoRoot);
   parts.push(docspecPromptContent.trim());
+
+  // Include base branch info if provided
+  if (options.baseRef) {
+    parts.push("", `**Base branch for PR**: ${options.baseRef}`);
+  }
 
   const prompt = parts.join("\n");
   const outPath = options.outputPath ? path.resolve(repoRoot, options.outputPath) : null;
