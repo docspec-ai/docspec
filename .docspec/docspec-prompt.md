@@ -19,7 +19,6 @@
 7. Use the Edit tool to modify markdown files directly if changes are needed
 8. When you have made any documentation changes: create a branch and open a pull request following these steps exactly:
    - Determine the base branch: use the base branch specified below, or the default branch if none is specified.
-   - Close any existing open pull requests whose head branch starts with `docspec/` (use `gh pr list --head` and `gh pr close`), then delete their remote branches (use `git push origin --delete`). This prevents stale docspec PRs from accumulating.
    - Fetch the latest base branch: `git fetch origin <base-branch>`.
    - Create a **new** branch from the base branch tip with a unique name: `git checkout -b docspec/docs-sync-$(date +%Y%m%d-%H%M%S) origin/<base-branch>`. Never reuse an existing `docspec/` branch.
    - Commit your changes, push the branch, and open a pull request using the gh CLI (e.g. `gh pr create --base <base-branch>`).
