@@ -161,9 +161,9 @@ function listChangedFiles(base: string, merge: string, repoRoot: string): string
 
 /**
  * List changed files in base..merge, excluding commits in excludeSet.
- * Uses a single `git log --name-only` walk when base is a commit. When base is
- * not a commit (e.g. empty tree), falls back to a plain two-dot file list —
- * there is no commit walk to filter.
+ * Uses a single `git log --name-only` walk. When base is a commit, walks
+ * `base..merge`; when base is not a commit (e.g. empty tree first-run), walks
+ * all commits reachable from merge so --exclude-commits still applies.
  */
 function listChangedFilesExcluding(
   base: string,
@@ -171,13 +171,15 @@ function listChangedFilesExcluding(
   repoRoot: string,
   excludeSet: Set<string>
 ): string[] {
-  if (excludeSet.size === 0 || !isGitCommit(base, repoRoot)) {
+  if (excludeSet.size === 0) {
     return listChangedFiles(base, merge, repoRoot);
   }
   let out: string;
   try {
     // %x00%H separates commits; --name-only lists files under each commit.
-    out = execSync(`git log ${base}..${merge} --name-only --format='%x00%H'`, {
+    // Empty-tree bases are not commits, so walk the full history of merge.
+    const logRange = isGitCommit(base, repoRoot) ? `${base}..${merge}` : merge;
+    out = execSync(`git log ${logRange} --name-only --format='%x00%H'`, {
       encoding: "utf-8",
       cwd: repoRoot,
       stdio: ["pipe", "pipe", "pipe"],

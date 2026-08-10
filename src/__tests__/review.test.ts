@@ -453,5 +453,38 @@ describe("review", () => {
       expect(prompt).toContain(".docspec/README.docspec.md");
       expect(prompt).toContain(`Git range: ${emptyTree}..${head}`);
     });
+
+    it("drops files touched only by excluded commits with empty-tree base", async () => {
+      initGitRepo(tempDir);
+      await writeDocspecPair(tempDir, "keep.md", "# Keep");
+      gitCommit(tempDir, "initial");
+
+      await fs.writeFile(path.join(tempDir, "keep.md"), "# Keep v2\n", "utf-8");
+      gitCommit(tempDir, "human edit");
+
+      // File that exists only via the excluded commit
+      await fs.writeFile(path.join(tempDir, "bot-only.ts"), "bot\n", "utf-8");
+      const excluded = gitCommit(tempDir, "docs: docspec daily sync");
+      const head = execSync("git rev-parse HEAD", { cwd: tempDir, encoding: "utf-8" }).trim();
+      const emptyTree = execSync("git hash-object -t tree /dev/null", {
+        cwd: tempDir,
+        encoding: "utf-8",
+      }).trim();
+
+      const { prompt } = await buildDocspecReviewPrompt({
+        repoRoot: tempDir,
+        mode: "batch",
+        base: emptyTree,
+        merge: head,
+        excludeCommits: [excluded],
+      });
+
+      const changedSection = prompt.slice(
+        prompt.indexOf("## Changed files"),
+        prompt.indexOf("## Diffstat")
+      );
+      expect(changedSection).toContain("keep.md");
+      expect(changedSection).not.toContain("bot-only.ts");
+    });
   });
 });
