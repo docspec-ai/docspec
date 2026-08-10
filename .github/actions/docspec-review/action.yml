@@ -112,9 +112,10 @@ runs:
           else
             BASE_SHA=$(git rev-list -1 --before="${FALLBACK}" HEAD 2>/dev/null || true)
             if [ -z "$BASE_SHA" ]; then
-              # Brand-new repo or history shorter than the window — use the root commit's parent-equivalent (empty tree).
-              BASE_SHA=$(git rev-list --max-parents=0 HEAD | tail -1)
-              echo "No commits before '${FALLBACK}'; falling back to root ${BASE_SHA}"
+              # Brand-new repo or history shorter than the window — use the empty tree so
+              # the root commit's files are included (root..HEAD would omit them).
+              BASE_SHA=$(git hash-object -t tree /dev/null)
+              echo "No commits before '${FALLBACK}'; falling back to empty tree ${BASE_SHA}"
             else
               echo "Resolved base from fallback window '${FALLBACK}': ${BASE_SHA}"
             fi
@@ -238,10 +239,12 @@ runs:
           EXCLUDE_ARGS=(--exclude-commits "$EXCLUDE")
         fi
 
+        # Do not swallow CLI failures with `|| true` — a crash must fail this step so the
+        # workflow does not advance the last-run tag and permanently skip the window.
         if [ -n "${{ inputs.review_files }}" ]; then
           FILES=$(echo "${{ inputs.review_files }}" | tr '\n' ' ' | sed 's/  */ /g' | tr ',' ' ' | sed 's/  */ /g' | xargs)
           docspec review $FILES --output "${{ inputs.output_file }}" \
-            "${MAX_DOCSPECS_ARGS[@]}" || true
+            "${MAX_DOCSPECS_ARGS[@]}"
         elif [ -n "${{ inputs.changed_files }}" ]; then
           CHANGED=$(echo "${{ inputs.changed_files }}" | tr '\n' ',' | sed 's/,,*/,/g' | sed 's/^,//;s/,$//')
           docspec review --mode "$MODE" --changed-files "$CHANGED" --output "${{ inputs.output_file }}" \
@@ -249,13 +252,13 @@ runs:
             "${MAX_DIFF_ARGS[@]}" \
             --base "$BASE" --merge "$MERGE" \
             ${BASE_REF:+--base-ref "$BASE_REF"} \
-            "${EXCLUDE_ARGS[@]}" || true
+            "${EXCLUDE_ARGS[@]}"
         else
           docspec review --mode "$MODE" --base "$BASE" --merge "$MERGE" --output "${{ inputs.output_file }}" \
             "${MAX_DOCSPECS_ARGS[@]}" \
             "${MAX_DIFF_ARGS[@]}" \
             ${BASE_REF:+--base-ref "$BASE_REF"} \
-            "${EXCLUDE_ARGS[@]}" || true
+            "${EXCLUDE_ARGS[@]}"
         fi
 
         if [ -f "$PROMPT_FILE" ] && [ -s "$PROMPT_FILE" ]; then

@@ -407,5 +407,26 @@ describe("review", () => {
       expect(prompt).toContain("## Docspec: .docspec/foo.docspec.md");
       expect(prompt).toContain("# Foo content");
     });
+
+    it("returns empty prompt when every commit in the window is excluded", async () => {
+      initGitRepo(tempDir);
+      await writeDocspecPair(tempDir, "only.md", "# Only");
+      const base = gitCommit(tempDir, "initial");
+
+      await fs.writeFile(path.join(tempDir, "only.md"), "# Only v2\n", "utf-8");
+      const excluded = gitCommit(tempDir, "docs: docspec daily sync");
+      const merge = execSync("git rev-parse HEAD", { cwd: tempDir, encoding: "utf-8" }).trim();
+
+      const { prompt } = await buildDocspecReviewPrompt({
+        repoRoot: tempDir,
+        mode: "batch",
+        base,
+        merge,
+        excludeCommits: [excluded],
+      });
+
+      // Must not fall back to the unfiltered diffstat and invent work.
+      expect(prompt).toBe("");
+    });
   });
 });

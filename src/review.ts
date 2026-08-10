@@ -210,6 +210,9 @@ function getDiffText(base: string, merge: string, repoRoot: string, maxChars: nu
 
 /**
  * Get a compact diffstat for base..merge, optionally restricted to a file list.
+ * When `paths` is provided as an empty array, returns "" (do not fall back to the
+ * unfiltered window — that would re-include excluded commits).
+ * When `paths` is undefined, no path filter is applied.
  */
 function getDiffStat(
   base: string,
@@ -218,6 +221,9 @@ function getDiffStat(
   maxChars: number,
   paths?: string[]
 ): string {
+  if (paths !== undefined && paths.length === 0) {
+    return "";
+  }
   try {
     const pathArgs =
       paths && paths.length > 0
@@ -536,6 +542,8 @@ export async function buildDocspecReviewPrompt(
         ? listChangedFilesExcluding(options.base, options.merge, repoRoot, excludeSet)
         : listChangedFiles(options.base, options.merge, repoRoot);
     if (isBatch) {
+      // When exclusions are active, always pass the (possibly empty) filtered path list
+      // so an all-excluded window yields an empty diffstat instead of the full unfiltered one.
       diffText = getDiffStat(
         options.base,
         options.merge,
@@ -543,6 +551,9 @@ export async function buildDocspecReviewPrompt(
         maxDiffChars,
         excludeSet.size > 0 ? changedFiles : undefined
       );
+    } else if (excludeSet.size > 0 && changedFiles.length === 0) {
+      // All commits excluded — no content to review.
+      diffText = "";
     } else {
       diffText = getDiffText(options.base, options.merge, repoRoot, maxDiffChars);
     }

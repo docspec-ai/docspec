@@ -93,8 +93,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Advance last-run marker
+        # Only advance after a successful prepare. An install/CLI failure must NOT
+        # look like an empty day and skip the window. Empty successful days (has_prompt
+        # false) still advance; Claude failures hold the tag for retry.
         if: >-
           always()
+          && steps.docspec.outcome == 'success'
           && (steps.docspec.outputs.has_prompt != 'true' || steps.claude.outcome == 'success')
           && steps.docspec.outputs.head_sha != ''
         shell: bash
