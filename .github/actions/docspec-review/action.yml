@@ -1,5 +1,5 @@
 name: 'Docspec Review'
-description: 'Prepare a prompt file to review/sync markdown with docspecs (no LLM; feed prompt to your own LLM CLI). Use PR context or specific markdown file(s).'
+description: 'Prepare a prompt file to review/sync markdown with docspecs (no LLM; feed prompt to your own LLM CLI). Supports per-PR inline mode or daily batch mode over commits since the last run.'
 
 inputs:
   # PR context (for git diff; optional if provided by workflow)
@@ -7,13 +7,13 @@ inputs:
     description: 'PR number that was merged (for workflow_dispatch). If not provided, will be extracted from event context.'
     required: false
   base_sha:
-    description: 'Base SHA of the merged PR. If not provided, will be extracted from event context.'
+    description: 'Base SHA of the window (PR base, or override for batch backfill). If not provided in batch mode, resolved from since_tag / fallback_window.'
     required: false
   merge_sha:
-    description: 'Merge commit SHA. If not provided, will be extracted from event context.'
+    description: 'Merge/head SHA of the window. If not provided, will be extracted from event context or HEAD.'
     required: false
   base_ref:
-    description: 'Base branch name (e.g., main). If not provided, will be extracted from event context.'
+    description: 'Base branch name (e.g., main). If not provided, will be extracted from event context or the repo default branch.'
     required: false
   # Manual review: specific markdown file(s) to review (comma- or newline-separated)
   review_files:
@@ -22,14 +22,24 @@ inputs:
   changed_files:
     description: 'Optional list of changed file paths (comma- or newline-separated). If set with base/merge, used for discovery.'
     required: false
+  mode:
+    description: "Prompt shape: 'pr' (inline, default) embeds full diff + content; 'batch' emits a compact summary for daily multi-commit windows."
+    required: false
+    default: 'pr'
+  since_tag:
+    description: 'Git tag marking the end of the previous successful batch run (batch mode only).'
+    required: false
+    default: 'docspec/last-run'
+  fallback_window:
+    description: 'When since_tag is missing, use git rev-list --before with this window (batch mode only).'
+    required: false
+    default: '24 hours ago'
   max_docspecs:
-    description: 'Maximum number of docspec files to include in the prompt'
+    description: 'Maximum number of docspec files to include in the prompt (defaults: 10 inline / 40 batch)'
     required: false
-    default: '10'
   max_diff_chars:
-    description: 'Maximum characters of PR diff to include'
+    description: 'Maximum characters of PR diff / diffstat to include (defaults: 120000 inline / 20000 batch)'
     required: false
-    default: '120000'
   output_file:
     description: 'Path to write the prompt file (relative to workspace)'
     required: false
@@ -42,70 +52,210 @@ outputs:
   has_prompt:
     description: 'Whether a prompt was generated (true/false)'
     value: ${{ steps.prepare.outputs.has_prompt }}
+  base_sha:
+    description: 'Resolved base SHA of the review window'
+    value: ${{ steps.range.outputs.base_sha }}
+  head_sha:
+    description: 'Resolved head SHA of the review window'
+    value: ${{ steps.range.outputs.head_sha }}
+  commit_count:
+    description: 'Number of commits in the review window (after exclusions, approximate)'
+    value: ${{ steps.range.outputs.commit_count }}
 
 runs:
   using: 'composite'
   steps:
-    - name: Extract PR details if not provided
-      id: pr_details
+    - name: Resolve review window
+      id: range
       shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
-        if [ -n "${{ inputs.base_sha }}" ] && [ -n "${{ inputs.merge_sha }}" ]; then
-          echo "base_sha=${{ inputs.base_sha }}" >> $GITHUB_OUTPUT
-          echo "merge_sha=${{ inputs.merge_sha }}" >> $GITHUB_OUTPUT
-          echo "base_ref=${{ inputs.base_ref }}" >> $GITHUB_OUTPUT
-        elif [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.pr_number }}" ]; then
+        set -euo pipefail
+
+        MODE="${{ inputs.mode }}"
+        # Normalize: 'pr' and 'inline' both mean inline prompt shape.
+        if [ "$MODE" = "pr" ] || [ "$MODE" = "inline" ] || [ -z "$MODE" ]; then
+          MODE="inline"
+        elif [ "$MODE" = "batch" ]; then
+          MODE="batch"
+        else
+          echo "Unknown mode '$MODE'; expected 'pr'/'inline' or 'batch'" >&2
+          exit 1
+        fi
+        echo "mode=$MODE" >> $GITHUB_OUTPUT
+
+        # Ensure tags are available for batch resolution.
+        git fetch --tags --force origin 2>/dev/null || true
+
+        BASE_SHA="${{ inputs.base_sha }}"
+        MERGE_SHA="${{ inputs.merge_sha }}"
+        BASE_REF="${{ inputs.base_ref }}"
+
+        if [ -n "$BASE_SHA" ] && [ -n "$MERGE_SHA" ]; then
+          : # explicit override wins
+        elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.pr_number }}" ]; then
           PR_NUM="${{ inputs.pr_number }}"
           PR_DATA=$(gh pr view "$PR_NUM" --json baseRefName,baseRefOid,mergeCommit,headRefOid)
           MERGE_SHA=$(echo "$PR_DATA" | jq -r '.mergeCommit.oid // .headRefOid')
-          echo "base_sha=$(echo "$PR_DATA" | jq -r '.baseRefOid')" >> $GITHUB_OUTPUT
-          echo "merge_sha=$MERGE_SHA" >> $GITHUB_OUTPUT
-          echo "base_ref=$(echo "$PR_DATA" | jq -r '.baseRefName')" >> $GITHUB_OUTPUT
+          BASE_SHA=$(echo "$PR_DATA" | jq -r '.baseRefOid')
+          BASE_REF=$(echo "$PR_DATA" | jq -r '.baseRefName')
+        elif [ "$MODE" = "batch" ]; then
+          MERGE_SHA=$(git rev-parse HEAD)
+          SINCE_TAG="${{ inputs.since_tag }}"
+          FALLBACK="${{ inputs.fallback_window }}"
+          if [ -n "$BASE_SHA" ]; then
+            : # explicit base_sha override for backfill
+          elif git rev-parse -q --verify "refs/tags/${SINCE_TAG}" >/dev/null 2>&1; then
+            BASE_SHA=$(git rev-parse "refs/tags/${SINCE_TAG}")
+            echo "Resolved base from tag ${SINCE_TAG}: ${BASE_SHA}"
+          else
+            BASE_SHA=$(git rev-list -1 --before="${FALLBACK}" HEAD 2>/dev/null || true)
+            if [ -z "$BASE_SHA" ]; then
+              # Brand-new repo or history shorter than the window — use the root commit's parent-equivalent (empty tree).
+              BASE_SHA=$(git rev-list --max-parents=0 HEAD | tail -1)
+              echo "No commits before '${FALLBACK}'; falling back to root ${BASE_SHA}"
+            else
+              echo "Resolved base from fallback window '${FALLBACK}': ${BASE_SHA}"
+            fi
+          fi
+          if [ -z "$BASE_REF" ]; then
+            BASE_REF=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || echo "main")
+          fi
         else
-          echo "base_sha=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
-          echo "merge_sha=${{ github.event.pull_request.merge_commit_sha || github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-          echo "base_ref=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          MERGE_SHA="${{ github.event.pull_request.merge_commit_sha || github.event.pull_request.head.sha }}"
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
         fi
+
+        if [ -z "$MERGE_SHA" ]; then
+          MERGE_SHA=$(git rev-parse HEAD)
+        fi
+        if [ -z "$BASE_REF" ]; then
+          BASE_REF=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || echo "main")
+        fi
+
+        echo "base_sha=${BASE_SHA}" >> $GITHUB_OUTPUT
+        echo "head_sha=${MERGE_SHA}" >> $GITHUB_OUTPUT
+        echo "base_ref=${BASE_REF}" >> $GITHUB_OUTPUT
+
+        # review_files mode does not need a commit window.
+        if [ -n "${{ inputs.review_files }}" ]; then
+          echo "empty_window=false" >> $GITHUB_OUTPUT
+          echo "commit_count=0" >> $GITHUB_OUTPUT
+        elif [ -n "$BASE_SHA" ] && [ -n "$MERGE_SHA" ] && [ "$BASE_SHA" = "$MERGE_SHA" ]; then
+          echo "empty_window=true" >> $GITHUB_OUTPUT
+          echo "commit_count=0" >> $GITHUB_OUTPUT
+          echo "Base equals head; empty review window."
+        else
+          echo "empty_window=false" >> $GITHUB_OUTPUT
+          COUNT=$(git rev-list --count "${BASE_SHA}..${MERGE_SHA}" 2>/dev/null || echo "0")
+          echo "commit_count=${COUNT}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Detect prior docspec-bot commits
+      id: exclude
+      if: steps.range.outputs.empty_window != 'true'
+      shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        BASE="${{ steps.range.outputs.base_sha }}"
+        HEAD="${{ steps.range.outputs.head_sha }}"
+        EXCLUDE=""
+
+        # Collect merge/squash commit SHAs of PRs whose head branch started with docspec/.
+        # Squash-safe: GitHub populates mergeCommit.oid with the squash commit on the base branch.
+        if PRS=$(gh pr list --state merged --limit 200 --json headRefName,mergeCommit 2>/dev/null); then
+          # Build the set of commits in the window.
+          WINDOW_COMMITS=$(git rev-list "${BASE}..${HEAD}" 2>/dev/null || true)
+          if [ -n "$WINDOW_COMMITS" ] && [ -n "$PRS" ]; then
+            EXCLUDE=$(echo "$PRS" | jq -r '
+              .[]
+              | select(.headRefName | startswith("docspec/"))
+              | .mergeCommit.oid // empty
+            ' | while read -r sha; do
+              [ -z "$sha" ] && continue
+              if echo "$WINDOW_COMMITS" | grep -qx "$sha"; then
+                echo "$sha"
+              fi
+            done | paste -sd, - || true)
+          fi
+        else
+          echo "Warning: failed to list merged PRs for docspec-commit filter; proceeding unfiltered." >&2
+        fi
+
+        echo "exclude_commits=${EXCLUDE}" >> $GITHUB_OUTPUT
+        if [ -n "$EXCLUDE" ]; then
+          echo "Excluding docspec-bot commits: ${EXCLUDE}"
+        else
+          echo "No docspec-bot commits to exclude in this window."
+        fi
 
     - name: Set up Node.js
+      if: steps.range.outputs.empty_window != 'true'
       uses: actions/setup-node@v4
       with:
         node-version: '20'
 
     - name: Install docspec
+      if: steps.range.outputs.empty_window != 'true'
       shell: bash
-      run: npm install -g docspec
+      run: npm install -g docspec@0.15.0
 
     - name: Prepare docspec review prompt
       id: prepare
       shell: bash
       run: |
+        set -euo pipefail
         REPO_ROOT="$GITHUB_WORKSPACE"
         PROMPT_FILE="$REPO_ROOT/${{ inputs.output_file }}"
         cd "$REPO_ROOT"
 
+        if [ "${{ steps.range.outputs.empty_window }}" = "true" ]; then
+          echo "prompt_file=" >> $GITHUB_OUTPUT
+          echo "has_prompt=false" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        MODE="${{ steps.range.outputs.mode }}"
+        BASE="${{ steps.range.outputs.base_sha }}"
+        MERGE="${{ steps.range.outputs.head_sha }}"
+        BASE_REF="${{ steps.range.outputs.base_ref }}"
+        EXCLUDE="${{ steps.exclude.outputs.exclude_commits }}"
+
+        MAX_DOCSPECS_ARGS=()
+        if [ -n "${{ inputs.max_docspecs }}" ]; then
+          MAX_DOCSPECS_ARGS=(--max-docspecs "${{ inputs.max_docspecs }}")
+        fi
+        MAX_DIFF_ARGS=()
+        if [ -n "${{ inputs.max_diff_chars }}" ]; then
+          MAX_DIFF_ARGS=(--max-diff-chars "${{ inputs.max_diff_chars }}")
+        fi
+        EXCLUDE_ARGS=()
+        if [ -n "$EXCLUDE" ]; then
+          EXCLUDE_ARGS=(--exclude-commits "$EXCLUDE")
+        fi
+
         if [ -n "${{ inputs.review_files }}" ]; then
           FILES=$(echo "${{ inputs.review_files }}" | tr '\n' ' ' | sed 's/  */ /g' | tr ',' ' ' | sed 's/  */ /g' | xargs)
           docspec review $FILES --output "${{ inputs.output_file }}" \
-            --max-docspecs "${{ inputs.max_docspecs }}" || true
+            "${MAX_DOCSPECS_ARGS[@]}" || true
         elif [ -n "${{ inputs.changed_files }}" ]; then
           CHANGED=$(echo "${{ inputs.changed_files }}" | tr '\n' ',' | sed 's/,,*/,/g' | sed 's/^,//;s/,$//')
-          BASE_REF="${{ steps.pr_details.outputs.base_ref }}"
-          docspec review --changed-files "$CHANGED" --output "${{ inputs.output_file }}" \
-            --max-docspecs "${{ inputs.max_docspecs }}" \
-            --max-diff-chars "${{ inputs.max_diff_chars }}" \
-            --base "${{ steps.pr_details.outputs.base_sha }}" --merge "${{ steps.pr_details.outputs.merge_sha }}" \
-            ${BASE_REF:+--base-ref "$BASE_REF"} || true
+          docspec review --mode "$MODE" --changed-files "$CHANGED" --output "${{ inputs.output_file }}" \
+            "${MAX_DOCSPECS_ARGS[@]}" \
+            "${MAX_DIFF_ARGS[@]}" \
+            --base "$BASE" --merge "$MERGE" \
+            ${BASE_REF:+--base-ref "$BASE_REF"} \
+            "${EXCLUDE_ARGS[@]}" || true
         else
-          BASE="${{ steps.pr_details.outputs.base_sha }}"
-          MERGE="${{ steps.pr_details.outputs.merge_sha }}"
-          BASE_REF="${{ steps.pr_details.outputs.base_ref }}"
-          docspec review --base "$BASE" --merge "$MERGE" --output "${{ inputs.output_file }}" \
-            --max-docspecs "${{ inputs.max_docspecs }}" \
-            --max-diff-chars "${{ inputs.max_diff_chars }}" \
-            ${BASE_REF:+--base-ref "$BASE_REF"} || true
+          docspec review --mode "$MODE" --base "$BASE" --merge "$MERGE" --output "${{ inputs.output_file }}" \
+            "${MAX_DOCSPECS_ARGS[@]}" \
+            "${MAX_DIFF_ARGS[@]}" \
+            ${BASE_REF:+--base-ref "$BASE_REF"} \
+            "${EXCLUDE_ARGS[@]}" || true
         fi
 
         if [ -f "$PROMPT_FILE" ] && [ -s "$PROMPT_FILE" ]; then

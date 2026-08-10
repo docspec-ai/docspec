@@ -58,19 +58,28 @@ const createCmd = program
 program
   .command("review")
   .description(
-    "Generate a prompt to review/sync markdown with docspecs (for use with an external LLM). Use PR context (--base/--merge) or specify markdown file(s) to review."
+    "Generate a prompt to review/sync markdown with docspecs (for use with an external LLM). Use PR context (--base/--merge), a daily batch window (--mode batch), or specify markdown file(s) to review."
   )
   .argument("[markdown_paths...]", "Markdown file(s) to review (e.g. README.md). If omitted, use --base/--merge or --changed-files for PR-based discovery.")
   .option(
     "--changed-files <paths>",
     "Comma-separated list of changed file paths (or omit and use --base/--merge for git diff)"
   )
-  .option("--base <sha>", "Base SHA for git diff (e.g. PR base)")
-  .option("--merge <sha>", "Merge SHA for git diff (e.g. PR merge commit)")
+  .option("--base <sha>", "Base SHA for git diff (e.g. PR base or last-run marker)")
+  .option("--merge <sha>", "Merge SHA for git diff (e.g. PR merge commit or HEAD)")
   .option("--base-ref <branch>", "Base branch name (e.g. main, develop). Used to tell the agent which branch to target when creating PRs.")
   .option("--output <file>", "Write prompt to this file", "prompt.txt")
-  .option("--max-docspecs <n>", "Max docspecs to include", "10")
-  .option("--max-diff-chars <n>", "Max characters of diff to include", "120000")
+  .option("--max-docspecs <n>", "Max docspecs to include (default 10 inline / 40 batch)")
+  .option("--max-diff-chars <n>", "Max characters of diff/diffstat to include (default 120000 inline / 20000 batch)")
+  .option(
+    "--mode <mode>",
+    "Prompt shape: 'inline' embeds full diff + docspec/markdown content (default); 'batch' emits a compact summary for daily multi-commit windows",
+    "inline"
+  )
+  .option(
+    "--exclude-commits <shas>",
+    "Comma-separated commit SHAs to exclude when computing the changed-file set (e.g. previous docspec-bot squash merges)"
+  )
   .action(async function (this: { opts: () => Record<string, unknown> }, markdownPaths: string[] = []) {
     const opts = program.opts();
     logger.setVerbose(opts.verbose || false);
@@ -82,6 +91,15 @@ program
     const base = cmdOpts.base as string | undefined;
     const merge = cmdOpts.merge as string | undefined;
     const baseRef = cmdOpts.baseRef as string | undefined;
+    const modeRaw = String(cmdOpts.mode ?? "inline");
+    if (modeRaw !== "inline" && modeRaw !== "batch") {
+      logger.error(`--mode must be 'inline' or 'batch' (got '${modeRaw}')`);
+      process.exit(1);
+    }
+    const mode = modeRaw as "inline" | "batch";
+    const excludeCommits = cmdOpts.excludeCommits
+      ? String(cmdOpts.excludeCommits).split(",").map((s: string) => s.trim()).filter(Boolean)
+      : undefined;
     if (!reviewFiles?.length && !changedFiles?.length && (!base || !merge)) {
       logger.error(
         "Provide markdown file(s) to review (e.g. docspec review README.md), or --changed-files, or both --base and --merge for git diff."
@@ -89,15 +107,24 @@ program
       process.exit(1);
     }
     try {
+      const maxDocspecsRaw = cmdOpts.maxDocspecs;
+      const maxDiffCharsRaw = cmdOpts.maxDiffChars;
       const { prompt, outputPath } = await buildDocspecReviewPrompt({
         reviewFiles,
         changedFiles,
         base,
         merge,
         baseRef,
+        mode,
+        excludeCommits,
         outputPath: (cmdOpts.output as string) || "prompt.txt",
-        maxDocspecs: parseInt(String(cmdOpts.maxDocspecs), 10),
-        maxDiffChars: parseInt(String(cmdOpts.maxDiffChars), 10),
+        // Only pass max* when the user set them so batch defaults can apply.
+        ...(maxDocspecsRaw !== undefined
+          ? { maxDocspecs: parseInt(String(maxDocspecsRaw), 10) }
+          : {}),
+        ...(maxDiffCharsRaw !== undefined
+          ? { maxDiffChars: parseInt(String(maxDiffCharsRaw), 10) }
+          : {}),
       });
       if (!prompt) {
         logger.info("No relevant docspec files found; no prompt written.");

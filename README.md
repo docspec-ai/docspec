@@ -1,6 +1,6 @@
 # docspec
 
-Docspec is a spec format and toolchain for keeping docs aligned with explicit specs. **The primary way to use docspec is the GitHub workflow**: add one action step and an LLM (e.g. Claude) reviews and updates documentation on PR merge. The workflow does use an LLM; API keys live in your repository secrets, not in docspec. The CLI is optional and only produces prompt output (no LLM in the docspec tool itself).
+Docspec is a spec format and toolchain for keeping docs aligned with explicit specs. **The primary way to use docspec is the GitHub workflow**: add one workflow file and an LLM (e.g. Claude) reviews and updates documentation on a **daily schedule**, covering all commits since the last successful run. The workflow does use an LLM; API keys live in your repository secrets, not in docspec. The CLI is optional and only produces prompt output (no LLM in the docspec tool itself).
 
 Keep docs aligned with their specs; review is automated and runs in CI; you choose the LLM.
 
@@ -12,26 +12,28 @@ Two key files define how docspec works:
 
 ## GitHub Actions (use docspec on your project)
 
-Add docspec to your GitHub project to automatically review documentation when PRs are merged.
+Add docspec to your GitHub project to automatically review documentation once per day.
 
 ### Simplest: call the reusable workflow
 
 Add a single workflow file that calls this repo's reusable workflow—no need to copy steps or the action. Add `ANTHROPIC_API_KEY` to your repository secrets; `GITHUB_TOKEN` is provided by GitHub.
 
+**Callers must declare their own `schedule` trigger** (`schedule` inside a reusable workflow does not fire for callers). Pass `mode: batch`.
+
 ```yaml
 name: Docspec review
 
 on:
-  pull_request:
-    types: [closed]
+  schedule:
+    - cron: '0 8 * * *'   # daily 08:00 UTC
   workflow_dispatch:
     inputs:
-      pr_number:
-        description: 'Pull request number (for manual run with PR context)'
+      base_sha:
+        description: 'Optional base SHA override for backfill (default: docspec/last-run tag or 24h fallback)'
         required: false
         type: string
       review_files:
-        description: 'Comma-separated markdown file(s) to review (e.g. README.md, docs/deploy.md). If set, reviews only these; no PR diff.'
+        description: 'Comma-separated markdown file(s) to review (e.g. README.md, docs/deploy.md). If set, reviews only these; no commit-window diff.'
         required: false
         type: string
 
@@ -43,11 +45,21 @@ jobs:
   docspec_review:
     uses: docspec-ai/docspec/.github/workflows/docspec-review.yml@main
     with:
-      pr_number: ${{ github.event.inputs.pr_number }}
+      mode: batch
+      base_sha: ${{ github.event.inputs.base_sha }}
       review_files: ${{ github.event.inputs.review_files }}
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
+
+#### How the daily window works
+
+- After each successful run the workflow force-updates a git tag `docspec/last-run` to the analysed HEAD.
+- The next run diffs `docspec/last-run..HEAD`.
+- On the first run (tag missing), the window falls back to the last 24 hours (`git rev-list -1 --before='24 hours ago'`).
+- Override the base with `workflow_dispatch` input `base_sha` for a larger catch-up.
+- Prior docspec-bot PRs (head branch `docspec/*`) in the window are excluded so yesterday's doc sync does not re-trigger work.
+- The agent opens a **draft PR on the first commit** and commits/pushes after each docspec, so partial work is never lost if the job times out.
 
 ### Inline workflow (action + Claude step)
 
@@ -57,7 +69,7 @@ For users who want to run the docspec-review action themselves and wire their ow
 - uses: docspec-ai/docspec/.github/actions/docspec-review@main
 ```
 
-See [action.yml](.github/actions/docspec-review/action.yml) for all inputs and outputs. This repo's [`.github/workflows/docspec-review.yml`](.github/workflows/docspec-review.yml) shows the full flow: the action prepares a prompt file (no LLM), then the Claude Code Action runs that prompt. Add `ANTHROPIC_API_KEY` to your repository secrets for the Claude step.
+See [action.yml](.github/actions/docspec-review/action.yml) for all inputs and outputs (including `mode`, `since_tag`, `fallback_window`). This repo's [`.github/workflows/docspec-review.yml`](.github/workflows/docspec-review.yml) shows the full flow: the action prepares a prompt file (no LLM), then the Claude Code Action runs that prompt, then the last-run tag is advanced. Add `ANTHROPIC_API_KEY` to your repository secrets for the Claude step.
 
 ## The Docspec Format
 
@@ -77,7 +89,7 @@ See [`docspec-template.md`](docspec-template.md) for the definitive format speci
 
 ### docspec-prompt
 
-The **docspec prompt** contains task instructions appended to the output when running `docspec review`. It tells the agent how to act: compare the target document to its docspec, update if needed, create new docs or docspecs when appropriate, and open a PR. It lives at **`.docspec/docspec-prompt.md`** (seeded from the bundled [`docspec-prompt.md`](docspec-prompt.md) if missing). Customize `.docspec/docspec-prompt.md` to change the review flow.
+The **docspec prompt** contains task instructions appended to the output when running `docspec review`. It tells the agent how to act: compare the target document to its docspec, update if needed, create new docs or docspecs when appropriate, and open a PR. It lives at **`.docspec/docspec-prompt.md`** (seeded from the bundled [`docspec-prompt.md`](docspec-prompt.md) if missing). Customize `.docspec/docspec-prompt.md` to change the review flow. In batch mode, additional incremental-commit instructions are generated by the tool and appended after this file.
 
 ## Installation
 
@@ -120,15 +132,17 @@ docspec create README.md --overwrite
 
 #### docspec review (prompt for reviewing/syncing docs)
 
-Produce a prompt file that instructs an LLM to review and sync markdown files with their docspecs. Use PR context (after a merge) or specify file(s) to review manually:
+Produce a prompt file that instructs an LLM to review and sync markdown files with their docspecs. Use a commit window (`--base`/`--merge`), daily batch mode, or specify file(s) to review manually:
 
 ```bash
 docspec review --base <base_sha> --merge <merge_sha> --output prompt.txt
+docspec review --mode batch --base <base_sha> --merge <head_sha> --base-ref main --output prompt.txt
 docspec review --changed-files "src/foo.ts,README.md" --base <base> --merge <merge> --output prompt.txt
+docspec review --mode batch --base <base> --merge <head> --exclude-commits <sha1,sha2> --output prompt.txt
 docspec review README.md docs/deploy.md --output prompt.txt
 ```
 
-Options: `--max-docspecs`, `--max-diff-chars`. Default output file: `prompt.txt`. The **docspec prompt** (general instructions and task steps appended to the prompt) is customizable: it lives at **`.docspec/docspec-prompt.md`**. If that file does not exist, it is seeded from the bundled default ([`docspec-prompt.md`](docspec-prompt.md)). If you have an existing `.docspec/agent-prompt.md` or `.docspec/review-task.md`, it will be used once and copied to `docspec-prompt.md`. Edit `.docspec/docspec-prompt.md` to change the instructions or task steps.
+Options: `--mode <inline|batch>`, `--exclude-commits <shas>`, `--base-ref`, `--max-docspecs`, `--max-diff-chars`. Default output file: `prompt.txt`. Defaults for `--max-docspecs` / `--max-diff-chars` depend on mode (10 / 120000 inline; 40 / 20000 batch). The **docspec prompt** (general instructions and task steps appended to the prompt) is customizable: it lives at **`.docspec/docspec-prompt.md`**. If that file does not exist, it is seeded from the bundled default ([`docspec-prompt.md`](docspec-prompt.md)). If you have an existing `.docspec/agent-prompt.md` or `.docspec/review-task.md`, it will be used once and copied to `docspec-prompt.md`. Edit `.docspec/docspec-prompt.md` to change the instructions or task steps.
 
 Add the `--verbose` flag to any command for detailed logging.
 
@@ -145,21 +159,24 @@ import {
 // Ensure both markdown and docspec exist (creates empty doc and template docspec if missing)
 await ensureDocAndDocspec("README.md", process.cwd(), { overwrite: false });
 
-// Build prompt for docspec review (e.g. for CI)
+// Build prompt for a daily batch window
 const { prompt, outputPath } = await buildDocspecReviewPrompt({
+  mode: "batch",
   base: "abc123",
   merge: "def456",
+  baseRef: "main",
+  excludeCommits: ["sha-of-prior-docspec-pr"],
   outputPath: "prompt.txt",
 });
 
 // Or review specific file(s) only (no diff)
-const { prompt } = await buildDocspecReviewPrompt({
+const { prompt: manual } = await buildDocspecReviewPrompt({
   reviewFiles: ["README.md", "docs/deploy.md"],
   outputPath: "prompt.txt",
 });
 ```
 
-The library also exports: `ensureDocAndDocspec()`, `generateDocspecContent()`, `logger`, `LogLevel`, `isDocspecPath`, and types `DocspecReviewOptions`, `EnsureDocAndDocspecOptions`, `EnsureDocAndDocspecResult`.
+The library also exports: `ensureDocAndDocspec()`, `generateDocspecContent()`, `logger`, `LogLevel`, `isDocspecPath`, and types `DocspecReviewOptions`, `ReviewMode`, `EnsureDocAndDocspecOptions`, `EnsureDocAndDocspecResult`.
 
 ## Development
 

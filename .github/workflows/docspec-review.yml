@@ -1,32 +1,52 @@
-# Run docspec review on PR merge (or manually for specific files) to produce a prompt, then run Claude.
+# Run docspec review on a daily schedule (or manually) to produce a prompt, then run Claude.
 # Add ANTHROPIC_API_KEY to repository secrets. Docspec does not run the LLM; this workflow
 # uses the official Claude Code Action to run the generated prompt.
+#
+# Default mode is batch: reviews all commits since the last successful run (tracked by the
+# docspec/last-run git tag, with a 24h fallback on first run). Callers should pass mode: batch
+# and provide their own schedule trigger (schedule in a reusable workflow does not fire for callers).
 
 name: Docspec review
 
 on:
-  pull_request:
-    types: [closed]
+  schedule:
+    # Runs in this repo only. Callers must declare their own schedule.
+    - cron: '0 8 * * *'
   workflow_dispatch:
     inputs:
-      pr_number:
-        description: 'Pull request number (for manual run with PR context)'
+      base_sha:
+        description: 'Optional base SHA override for batch backfill (default: docspec/last-run tag or 24h fallback)'
         required: false
         type: string
       review_files:
-        description: 'Comma-separated markdown file(s) to review (e.g. README.md, docs/deploy.md). If set, reviews only these; no PR diff.'
+        description: 'Comma-separated markdown file(s) to review (e.g. README.md, docs/deploy.md). If set, reviews only these; no commit-window diff.'
         required: false
         type: string
+      mode:
+        description: "Prompt shape: 'batch' (default) or 'pr'/'inline'"
+        required: false
+        type: string
+        default: 'batch'
   workflow_call:
     inputs:
-      pr_number:
-        description: 'PR number (when calling from another repo with PR context)'
+      base_sha:
+        description: 'Optional base SHA override for batch backfill'
         required: false
         type: string
       review_files:
         description: 'Comma-separated markdown file(s) to review'
         required: false
         type: string
+      mode:
+        description: "Prompt shape: 'batch' (default for callers) or 'pr'/'inline'"
+        required: false
+        type: string
+        default: 'batch'
+      since_tag:
+        description: 'Git tag marking the previous successful batch run'
+        required: false
+        type: string
+        default: 'docspec/last-run'
     secrets:
       ANTHROPIC_API_KEY:
         required: true
@@ -42,13 +62,8 @@ concurrency:
 
 jobs:
   docspec_review_then_claude:
-    # Skip when the merged PR is from a docspec-generated branch to avoid re-running on docspec's own PRs.
-    if: >-
-      (github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch')
-      && (github.event_name != 'pull_request'
-          || (!startsWith(github.event.pull_request.head.ref, 'docspec/')
-              && !startsWith(github.event.pull_request.head.ref, 'docspec-')))
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -59,10 +74,13 @@ jobs:
         id: docspec
         uses: docspec-ai/docspec/.github/actions/docspec-review@main
         with:
-          pr_number: ${{ inputs.pr_number || github.event.inputs.pr_number }}
+          mode: ${{ inputs.mode || github.event.inputs.mode || 'batch' }}
+          base_sha: ${{ inputs.base_sha || github.event.inputs.base_sha }}
           review_files: ${{ inputs.review_files || github.event.inputs.review_files }}
+          since_tag: ${{ inputs.since_tag || 'docspec/last-run' }}
 
       - name: Run Claude Code with docspec prompt
+        id: claude
         if: steps.docspec.outputs.has_prompt == 'true'
         uses: anthropics/claude-code-action/base-action@v1
         with:
@@ -73,3 +91,22 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Advance last-run marker
+        if: >-
+          always()
+          && (steps.docspec.outputs.has_prompt != 'true' || steps.claude.outcome == 'success')
+          && steps.docspec.outputs.head_sha != ''
+        shell: bash
+        env:
+          HEAD_SHA: ${{ steps.docspec.outputs.head_sha }}
+          SINCE_TAG: ${{ inputs.since_tag || 'docspec/last-run' }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HEAD_SHA}" ]; then
+            echo "No head SHA resolved; skipping tag advance."
+            exit 0
+          fi
+          git tag -f "${SINCE_TAG}" "${HEAD_SHA}"
+          git push -f origin "refs/tags/${SINCE_TAG}"
+          echo "Advanced ${SINCE_TAG} -> ${HEAD_SHA}"
