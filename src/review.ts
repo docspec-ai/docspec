@@ -113,11 +113,42 @@ function norm(p: string): string {
 }
 
 /**
- * List changed files via git diff --name-only base...merge (no exclusion).
+ * True when `sha` resolves to a commit object. False for trees (e.g. the empty
+ * tree used as a first-run base), blobs, or missing objects.
+ */
+function isGitCommit(sha: string, repoRoot: string): boolean {
+  try {
+    const t = execSync(`git cat-file -t ${sha}`, {
+      encoding: "utf-8",
+      cwd: repoRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+    return t === "commit";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Build a git diff range expression.
+ * - Commit..commit: three-dot `A...B` (merge-base aware, matches prior behavior)
+ * - Tree/other..commit (first-run empty-tree base): two-dot `A B` — three-dot and
+ *   `git log A..B` require commit objects and would fail silently.
+ */
+function diffRangeArgs(base: string, merge: string, repoRoot: string): string {
+  if (isGitCommit(base, repoRoot)) {
+    return `${base}...${merge}`;
+  }
+  return `${base} ${merge}`;
+}
+
+/**
+ * List changed files via git diff --name-only (no exclusion).
  */
 function listChangedFiles(base: string, merge: string, repoRoot: string): string[] {
   try {
-    const out = execSync(`git diff --name-only ${base}...${merge}`, {
+    const range = diffRangeArgs(base, merge, repoRoot);
+    const out = execSync(`git diff --name-only ${range}`, {
       encoding: "utf-8",
       cwd: repoRoot,
       stdio: ["pipe", "pipe", "pipe"],
@@ -130,8 +161,9 @@ function listChangedFiles(base: string, merge: string, repoRoot: string): string
 
 /**
  * List changed files in base..merge, excluding commits in excludeSet.
- * Uses a single `git log --name-only` walk. A file stays in scope if any
- * non-excluded commit in the window touched it.
+ * Uses a single `git log --name-only` walk when base is a commit. When base is
+ * not a commit (e.g. empty tree), falls back to a plain two-dot file list —
+ * there is no commit walk to filter.
  */
 function listChangedFilesExcluding(
   base: string,
@@ -139,7 +171,7 @@ function listChangedFilesExcluding(
   repoRoot: string,
   excludeSet: Set<string>
 ): string[] {
-  if (excludeSet.size === 0) {
+  if (excludeSet.size === 0 || !isGitCommit(base, repoRoot)) {
     return listChangedFiles(base, merge, repoRoot);
   }
   let out: string;
@@ -170,7 +202,7 @@ function listChangedFilesExcluding(
 }
 
 /**
- * Get diff text via git diff base...merge, truncated if needed.
+ * Get diff text via git diff, truncated if needed.
  * Excludes common non-code files (lock files, generated files) to reduce diff size.
  */
 function getDiffText(base: string, merge: string, repoRoot: string, maxChars: number): string {
@@ -194,7 +226,8 @@ function getDiffText(base: string, merge: string, repoRoot: string, maxChars: nu
       ':!dist/',
       ':!build/',
     ].map(p => `'${p}'`).join(' ');
-    diff = execSync(`git diff ${base}...${merge} -- . ${excludePatterns}`, {
+    const range = diffRangeArgs(base, merge, repoRoot);
+    diff = execSync(`git diff ${range} -- . ${excludePatterns}`, {
       encoding: "utf-8",
       cwd: repoRoot,
       stdio: ["pipe", "pipe", "pipe"],
@@ -229,7 +262,8 @@ function getDiffStat(
       paths && paths.length > 0
         ? " -- " + paths.map((p) => `'${p.replace(/'/g, "'\\''")}'`).join(" ")
         : "";
-    let stat = execSync(`git diff --stat ${base}...${merge}${pathArgs}`, {
+    const range = diffRangeArgs(base, merge, repoRoot);
+    let stat = execSync(`git diff --stat ${range}${pathArgs}`, {
       encoding: "utf-8",
       cwd: repoRoot,
       stdio: ["pipe", "pipe", "pipe"],

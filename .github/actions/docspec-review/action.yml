@@ -150,7 +150,12 @@ runs:
           echo "Base equals head; empty review window."
         else
           echo "empty_window=false" >> $GITHUB_OUTPUT
-          COUNT=$(git rev-list --count "${BASE_SHA}..${MERGE_SHA}" 2>/dev/null || echo "0")
+          # Empty-tree bases are not commits; git rev-list A..B requires commits.
+          if git cat-file -t "$BASE_SHA" 2>/dev/null | grep -qx commit; then
+            COUNT=$(git rev-list --count "${BASE_SHA}..${MERGE_SHA}" 2>/dev/null || echo "0")
+          else
+            COUNT=$(git rev-list --count "${MERGE_SHA}" 2>/dev/null || echo "0")
+          fi
           echo "commit_count=${COUNT}" >> $GITHUB_OUTPUT
         fi
 
@@ -169,8 +174,12 @@ runs:
         # Collect merge/squash commit SHAs of PRs whose head branch started with docspec/.
         # Squash-safe: GitHub populates mergeCommit.oid with the squash commit on the base branch.
         if PRS=$(gh pr list --state merged --limit 200 --json headRefName,mergeCommit 2>/dev/null); then
-          # Build the set of commits in the window.
-          WINDOW_COMMITS=$(git rev-list "${BASE}..${HEAD}" 2>/dev/null || true)
+          # Build the set of commits in the window. Empty-tree bases are not commits.
+          if git cat-file -t "$BASE" 2>/dev/null | grep -qx commit; then
+            WINDOW_COMMITS=$(git rev-list "${BASE}..${HEAD}" 2>/dev/null || true)
+          else
+            WINDOW_COMMITS=$(git rev-list "${HEAD}" 2>/dev/null || true)
+          fi
           if [ -n "$WINDOW_COMMITS" ] && [ -n "$PRS" ]; then
             EXCLUDE=$(echo "$PRS" | jq -r '
               .[]

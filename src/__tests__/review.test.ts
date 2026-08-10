@@ -429,4 +429,29 @@ describe("review", () => {
       expect(prompt).toBe("");
     });
   });
+
+  describe("empty-tree base (first-run full history)", () => {
+    it("includes root-commit files when base is the empty tree", async () => {
+      initGitRepo(tempDir);
+      await writeDocspecPair(tempDir, "README.md", "# Hello from root commit");
+      const head = gitCommit(tempDir, "initial");
+      const emptyTree = execSync("git hash-object -t tree /dev/null", {
+        cwd: tempDir,
+        encoding: "utf-8",
+      }).trim();
+
+      const { prompt } = await buildDocspecReviewPrompt({
+        repoRoot: tempDir,
+        mode: "batch",
+        base: emptyTree,
+        merge: head,
+        baseRef: "main",
+      });
+
+      expect(prompt).not.toBe("");
+      expect(prompt).toContain("README.md");
+      expect(prompt).toContain(".docspec/README.docspec.md");
+      expect(prompt).toContain(`Git range: ${emptyTree}..${head}`);
+    });
+  });
 });
