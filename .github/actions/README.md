@@ -25,8 +25,9 @@ Prepares a prompt file to review/sync markdown with docspecs. Runs `docspec revi
 
 1. `git fetch --tags --force origin`
 2. Base = `base_sha` input, else the `since_tag` commit, else `git rev-list -1 --before="<fallback_window>" HEAD`
-3. Head = `merge_sha` input or `HEAD`
-4. If base == head and no `review_files`, `has_prompt=false`
+3. If the repo has no commit before the fallback window (brand-new repo, or history shorter than the window), base falls back to the empty tree so the root commit's files are still reviewed
+4. Head = `merge_sha` input or `HEAD`
+5. If base == head and no `review_files`, `has_prompt=false`
 
 ### Docspec-commit filter
 
