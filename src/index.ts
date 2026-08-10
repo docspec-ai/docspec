@@ -18,6 +18,6 @@ export {
   isDocspecPath,
 } from "./path-utils";
 export { buildDocspecReviewPrompt } from "./review";
-export type { DocspecReviewOptions } from "./review";
+export type { DocspecReviewOptions, ReviewMode } from "./review";
 export { logger, LogLevel } from "./logger";
 
