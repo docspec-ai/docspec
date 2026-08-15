@@ -130,6 +130,12 @@ docspec create docs/deploy.md
 docspec create README.md --overwrite
 ```
 
+With no arguments, `create` only copies the latest bundled boilerplate (`docspec-prompt.md`, `docspec-template.md`) into `.docspec/`:
+
+```bash
+docspec create
+```
+
 #### docspec review (prompt for reviewing/syncing docs)
 
 Produce a prompt file that instructs an LLM to review and sync markdown files with their docspecs. Use a commit window (`--base`/`--merge`), daily batch mode, or specify file(s) to review manually:
@@ -176,7 +182,7 @@ const { prompt: manual } = await buildDocspecReviewPrompt({
 });
 ```
 
-The library also exports: `ensureDocAndDocspec()`, `generateDocspecContent()`, `logger`, `LogLevel`, `isDocspecPath`, and types `DocspecReviewOptions`, `ReviewMode`, `EnsureDocAndDocspecOptions`, `EnsureDocAndDocspecResult`.
+The library also exports: `ensureDocAndDocspec()`, `generateDocspecContent()`, `copyLatestBoilerplate()`, `logger`, `LogLevel`, `isDocspecPath`, and types `DocspecReviewOptions`, `ReviewMode`, `EnsureDocAndDocspecOptions`, `EnsureDocAndDocspecResult`, `CopyLatestBoilerplateResult`.
 
 ## Development
 
